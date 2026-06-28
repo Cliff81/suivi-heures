@@ -777,8 +777,11 @@ def espace():
             pd_db, pf_db = 0, ptot
         else:
             pd_db, pf_db = None, None
+        # Le salarie ne renseigne QUE le km jour. Le km commercial reste de la
+        # responsabilite de l'admin : on preserve sa valeur eventuelle.
         km_jour = _lire_km(request.form.get("km_jour", ""))
-        km_com = _lire_km(request.form.get("km_com", ""))
+        ancien = db.jour(sid, iso)
+        km_com = ancien["km_com"] if ancien else None
         km_vide = (None if (km_jour is None and km_com is None)
                    else (km_jour or 0) - (km_com or 0))
         db.enregistrer_jour(sid, iso, {
