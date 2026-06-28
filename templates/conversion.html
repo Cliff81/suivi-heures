@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Conversion — Suivi des heures{% endblock %}
+{% block content %}
+<h1 class="page">🔢 Conversion minutes → centièmes (heures décimales)</h1>
+
+<table class="recap" style="max-width:380px">
+  <thead><tr><th>Minutes (sur 60)</th><th>En centièmes (sur 100)</th></tr></thead>
+  <tbody>
+  {% for m, c in table %}
+    <tr><td>{{ m }}</td><td>{{ c }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="conv-libre">
+  <label>Durée (HH:MM ou minutes) :</label>
+  <input type="text" id="entree" style="width:120px" autofocus>
+  <span>=</span>
+  <span class="res" id="res">0,00</span>
+  <span>centièmes</span>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function parseHeure(txt){
+  let s = String(txt).trim().toLowerCase().replace(",", ".").replace("h", ":");
+  if(s==="") return 0;
+  if(s.indexOf(":")>=0){
+    let p=s.split(":"); let h=p[0]===""?0:parseInt(p[0],10); let m=p[1]===""?0:parseInt(p[1],10);
+    return (isNaN(h)?0:h)*60+(isNaN(m)?0:m);
+  }
+  let v=parseFloat(s); return isNaN(v)?null:Math.round(v);
+}
+const e=document.getElementById("entree"), r=document.getElementById("res");
+e.addEventListener("keyup",()=>{
+  let s=e.value.trim(); let mins;
+  if(s.indexOf(":")>=0 || s.toLowerCase().indexOf("h")>=0){ mins=parseHeure(s); }
+  else { let v=parseFloat(s.replace(",",".")); mins=s===""?0:(isNaN(v)?null:Math.round(v)); }
+  r.textContent = (mins==null)?"—":(mins/60).toFixed(2).replace(".",",");
+});
+</script>
+{% endblock %}

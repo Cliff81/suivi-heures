@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Ma journée — Suivi des heures{% endblock %}
+{% block content %}
+
+{% if not sal %}
+  <div class="carte">
+    <h1 class="page">Bonjour {{ login }}</h1>
+    <p class="sous">Votre compte n'est rattaché à aucun salarié. Contactez un
+       administrateur pour qu'il vous associe à votre fiche salarié.</p>
+  </div>
+{% else %}
+<div class="espace">
+  <h1 class="page">👋 Bonjour {{ nom }}</h1>
+  <p class="sous" style="text-transform:capitalize">{{ date_fr }}</p>
+
+  {% if saisie %}
+    <div class="carte" style="border-left:5px solid var(--vert)">
+      <div class="entete" style="color:var(--vert)">✅ Journée enregistrée</div>
+      <p style="margin:6px 0">Arrivée <b>{{ saisie.amp_d }}</b> · Départ <b>{{ saisie.amp_f }}</b>
+         · Temps de travail : <b style="color:var(--vert)">{{ saisie.travail }}</b></p>
+      <p class="sous" style="margin:4px 0 0">Vous pouvez encore corriger votre saisie
+         aujourd'hui. Elle sera verrouillée demain.</p>
+    </div>
+  {% endif %}
+
+  <form method="post" class="carte" id="majournee">
+    <input type="hidden" name="date" value="{{ date_iso }}">
+    <div class="entete">{{ "Corriger ma journée" if saisie else "Saisir ma journée" }}</div>
+
+    <div class="deux-champs">
+      <div>
+        <label>Heure d'arrivée</label>
+        <input type="time" name="amp_d" inputmode="numeric"
+               value="{{ saisie.amp_d if saisie else '' }}" required>
+      </div>
+      <div>
+        <label>Heure de départ</label>
+        <input type="time" name="amp_f" inputmode="numeric"
+               value="{{ saisie.amp_f if saisie else '' }}" required>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <label style="font-weight:600">Pauses (facultatif)</label>
+      <div id="pauses">
+        {% for p in pauses %}
+        <div class="pause-ligne">
+          <input type="time" name="pause_d" value="{{ p.d }}" aria-label="Début pause">
+          <span>→</span>
+          <input type="time" name="pause_f" value="{{ p.f }}" aria-label="Fin pause">
+          <button type="button" class="btn btn-gris btn-sm" onclick="this.parentElement.remove()">✕</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn btn-gris" style="margin-top:8px"
+              onclick="ajouterPause()">➕ Ajouter une pause</button>
+    </div>
+
+    <div style="margin-top:18px">
+      <button class="btn btn-rouge btn-valider" type="submit">💾 Valider ma journée</button>
+    </div>
+  </form>
+
+  {% if histo %}
+  <div class="carte">
+    <div class="entete">Mes journées de ce mois</div>
+    <table class="grille" style="max-width:520px">
+      <thead><tr><th>Jour</th><th>Arrivée → Départ</th><th>Travaillé</th></tr></thead>
+      <tbody>
+      {% for h in histo %}
+        <tr class="{{ 'weekend' if h.aujourdhui }}">
+          <td class="jour" style="text-transform:capitalize">{{ h.date }}{{ " (aujourd'hui)" if h.aujourdhui }}</td>
+          <td>{{ h.amp }}</td>
+          <td class="total">{{ h.travail }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="sous" style="margin-top:8px">Les journées passées ne sont plus modifiables.</p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function ajouterPause(){
+  const wrap = document.getElementById("pauses");
+  const div = document.createElement("div");
+  div.className = "pause-ligne";
+  div.innerHTML = '<input type="time" name="pause_d" aria-label="Début pause">'
+    + '<span>→</span>'
+    + '<input type="time" name="pause_f" aria-label="Fin pause">'
+    + '<button type="button" class="btn btn-gris btn-sm">✕</button>';
+  div.querySelector("button").onclick = ()=>div.remove();
+  wrap.appendChild(div);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="login-box" method="post">
+  <h1>🚑 Suivi des heures</h1>
+  <p class="sub">Accord 39 heures</p>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% endwith %}
+  <label>Identifiant</label>
+  <input type="text" name="login" autofocus autocomplete="username">
+  <label>Mot de passe</label>
+  <input type="password" name="password" autocomplete="current-password">
+  <button class="btn btn-rouge" type="submit">Se connecter</button>
+</form>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Récap global — Suivi des heures{% endblock %}
+{% block content %}
+
+<form class="barre" method="get" action="{{ url_for('recap_global') }}" id="nav">
+  <label>Année :</label>
+  <input type="number" name="annee" value="{{ annee }}" min="2000" max="2100"
+         style="width:90px" onchange="document.getElementById('nav').submit()">
+  <a class="btn btn-gris btn-sm spacer" href="{{ url_for('export_excel', annee=annee) }}">⬇ Export Excel</a>
+</form>
+
+<div class="bandeau">
+  <span class="gros">🚑 Total général d'heures travaillées en {{ annee }} :
+    {{ bandeau.total }} ({{ bandeau.total_cent }} h)</span>
+  <span class="jaune">Heures sup. : {{ bandeau.sup35 }} &nbsp;|&nbsp; Congés (au-delà accord) : {{ bandeau.sup39 }}</span>
+</div>
+
+<div style="overflow-x:auto">
+<table class="glob">
+  <thead><tr><th>SALARIÉ</th>
+    {% for e in entetes %}<th>{{ e }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for l in lignes %}
+    <tr><td class="nom">{{ l.nom }}</td>
+      {% for c in l.cellules %}<td>{{ c }}</td>{% endfor %}</tr>
+  {% endfor %}
+    <tr class="tot"><td class="nom">TOTAL GÉNÉRAL</td>
+      {% for c in total_row %}<td>{{ c }}</td>{% endfor %}</tr>
+  </tbody>
+</table>
+</div>
+<p class="sous" style="margin-top:10px">Cumul des 12 mois de l'année. Valeurs au format HH:MM.</p>
+{% endblock %}

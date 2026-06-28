@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Salariés — Suivi des heures{% endblock %}
+{% block content %}
+<h1 class="page">👥 Gestion des salariés</h1>
+<p class="sous">Format de la durée hebdomadaire : HH:MM (ex. 39:00).</p>
+
+<ul class="liste">
+  {% for s in sals %}
+  <li>
+    <span class="principal">{{ s.nom_complet }}</span>
+    <span class="cent">— {{ s.duree }}/sem.</span>
+    <form method="post" onsubmit="return preparer(this,{{ s.id }})" style="margin-left:auto">
+      <input type="hidden" name="action" value="modifier">
+      <input type="hidden" name="sid" value="{{ s.id }}">
+      <input type="text" name="prenom" value="{{ s.prenom }}" placeholder="Prénom" style="width:120px">
+      <input type="text" name="nom" value="{{ s.nom }}" placeholder="Nom" style="width:140px">
+      <input type="text" name="duree" value="{{ s.duree }}" style="width:70px">
+      <button class="btn btn-bleu btn-sm" type="submit">✏ Modifier</button>
+    </form>
+    <form method="post" onsubmit="return confirm('Supprimer {{ s.nom_complet }} et toutes ses données ?')">
+      <input type="hidden" name="action" value="supprimer">
+      <input type="hidden" name="sid" value="{{ s.id }}">
+      <button class="btn btn-gris btn-sm" type="submit">🗑</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+
+<div class="carte" style="margin-top:14px">
+  <div class="entete">➕ Ajouter un salarié</div>
+  <form method="post" class="grid-form">
+    <input type="hidden" name="action" value="ajouter">
+    <div><label>Prénom</label><input type="text" name="prenom"></div>
+    <div><label>Nom</label><input type="text" name="nom" required></div>
+    <div><label>Durée hebdo (HH:MM)</label><input type="text" name="duree" value="39:00"></div>
+    <div><button class="btn btn-rouge" type="submit">Ajouter</button></div>
+  </form>
+</div>
+{% endblock %}

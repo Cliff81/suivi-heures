@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Saisie — Suivi des heures{% endblock %}
+{% block content %}
+
+<form class="barre" method="get" action="{{ url_for('saisie') }}" id="nav">
+  <label>Année :</label>
+  <input type="number" name="annee" value="{{ annee }}" min="2000" max="2100"
+         style="width:90px" onchange="document.getElementById('nav').submit()">
+  <label>Salarié :</label>
+  <select name="sid" onchange="document.getElementById('nav').submit()">
+    {% for s in sals %}
+      <option value="{{ s['id'] }}" {{ 'selected' if s['id']==sid }}>{{ s['nom'] if not s['prenom'] else (s['prenom'] ~ ' ' ~ s['nom']) }}</option>
+    {% endfor %}
+  </select>
+  <label>Mois :</label>
+  <select name="mois" onchange="document.getElementById('nav').submit()">
+    {% for nom in MOIS_NOMS %}
+      <option value="{{ loop.index }}" {{ 'selected' if loop.index==mois }}>{{ nom }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if not sal %}
+  <p class="sous">Aucun salarié. Ajoutez-en un dans l'onglet « Salariés ».</p>
+{% else %}
+<form method="post" action="{{ url_for('saisie', sid=sid, annee=annee, mois=mois) }}" id="grille">
+  <h1 class="page">🧑‍⚕️ {{ sal['prenom'] }} {{ sal['nom'] }}
+    <span style="color:var(--bleu);font-size:16px">— {{ MOIS_NOMS[mois-1] }} {{ annee }}</span></h1>
+  <p class="sous">⏱ Durée contractuelle : {{ '%02d:%02d'|format(seuil_min//60, seuil_min%60) }}/sem.
+     &nbsp;·&nbsp; ⚠ amplitude 12h/j · 10h trav./j · 48h/sem · 44h moy./12 sem.</p>
+
+  {% for sem in semaines %}
+  <div class="carte semaine" data-num="{{ sem.num }}">
+    <div class="entete">Semaine {{ sem.num }} (du {{ sem.du }} au {{ sem.au }})</div>
+    <table class="grille">
+      <thead><tr>
+        <th>Jour</th><th>Date</th>
+        <th>Amplitude début</th><th>Amplitude fin</th>
+        <th>Pause début</th><th>Pause fin</th>
+        <th>Km jour</th><th>Km comm.</th><th>Km à vide</th>
+        <th>Heures trav.</th>
+      </tr></thead>
+      <tbody>
+      {% for j in sem.jours %}
+        <tr class="{{ 'hors' if j.hors_mois }} {{ 'weekend' if j.weekend and not j.hors_mois }}">
+          <td class="jour">{{ j.jour_nom }}</td>
+          <td class="date">{{ j.date_fr }}</td>
+          {% if j.hors_mois %}
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+          {% else %}
+            <td><input type="text" class="hh" name="{{ j.iso }}__amp_d" value="{{ j.amp_d }}" data-iso="{{ j.iso }}" data-f="amp_d"></td>
+            <td><input type="text" class="hh" name="{{ j.iso }}__amp_f" value="{{ j.amp_f }}" data-iso="{{ j.iso }}" data-f="amp_f"></td>
+            <td><input type="text" class="hh" name="{{ j.iso }}__pause_d" value="{{ j.pause_d }}" data-iso="{{ j.iso }}" data-f="pause_d"></td>
+            <td><input type="text" class="hh" name="{{ j.iso }}__pause_f" value="{{ j.pause_f }}" data-iso="{{ j.iso }}" data-f="pause_f"></td>
+            <td><input type="text" class="km" name="{{ j.iso }}__km_jour" value="{{ j.km_jour }}" data-iso="{{ j.iso }}" data-f="km_jour"></td>
+            <td><input type="text" class="km" name="{{ j.iso }}__km_com" value="{{ j.km_com }}" data-iso="{{ j.iso }}" data-f="km_com"></td>
+            <td class="calc" data-vide="{{ j.iso }}"></td>
+            <td class="total" data-total="{{ j.iso }}">00:00</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div class="tot-sem">
+      <span><span class="lib">Total semaine :</span> <b class="k-total" data-w="{{ sem.num }}" data-k="total">00:00</b></span>
+      <span><span class="lib">Sup. &gt; 35h :</span> <b class="k-sup35" data-w="{{ sem.num }}" data-k="sup35">00:00</b></span>
+      <span><span class="lib">Dans accord 39h :</span> <b class="k-accord39" data-w="{{ sem.num }}" data-k="accord39">00:00</b></span>
+      <span><span class="lib">Sup. &gt; 39h (congés) :</span> <b class="k-sup39" data-w="{{ sem.num }}" data-k="sup39">00:00</b></span>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="total-mois">
+    <h2>TOTAL DU MOIS</h2>
+    <div class="lignes">
+      <div>Total heures travaillées : <span class="v k-total" data-m="total">00:00</span><span class="cent" data-mc="total">(0.00)</span></div>
+      <div>Total heures supplémentaires (&gt; 35h) : <span class="v k-sup35" data-m="sup35">00:00</span><span class="cent" data-mc="sup35">(0.00)</span></div>
+      <div>Dont rentrant dans l'accord 39h : <span class="v k-accord39" data-m="accord39">00:00</span><span class="cent" data-mc="accord39">(0.00)</span></div>
+      <div>Heures &gt; 39h ouvrant droit à congés : <span class="v k-sup39" data-m="sup39">00:00</span><span class="cent" data-mc="sup39">(0.00)</span></div>
+    </div>
+
+    <div style="margin-top:14px">
+      <label>Heures supplémentaires PAYÉES ce mois :</label>
+      <input type="text" name="payees" value="{{ payees }}" style="width:90px"> <span class="cent">(format HH:MM)</span>
+    </div>
+
+    <div class="compteur">
+      <div class="entete" style="font-weight:700;color:var(--bleu)">🏖 Compteur d'heures de congés (&gt; 39h)</div>
+      <div style="margin:8px 0">Heures de congés PRISES ce mois :
+        <input type="text" name="pris" value="{{ pris }}" style="width:90px"> <span class="cent">(retirées du compteur)</span></div>
+      <div>SOLDE du compteur (fin de ce mois) :
+        <span class="solde {{ 'neg' if solde.startswith('-') }}">{{ solde }}</span>
+        <span class="cent">(recalculé après enregistrement)</span></div>
+    </div>
+
+    <div style="margin-top:16px">
+      <button class="btn btn-rouge" type="submit">💾 Enregistrer</button>
+    </div>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SEUIL = {{ seuil_min if sal else 0 }};
+const DUREE_LEGALE = 35*60, MAX_JOUR = {{ MAX_JOUR if sal else 600 }}, MAX_SEMAINE = {{ MAX_SEMAINE if sal else 2880 }};
+
+function parseHeure(txt){
+  if(txt==null) return null;
+  let s = String(txt).trim().toLowerCase().replace(",", ".").replace("h", ":");
+  if(s==="") return null;
+  if(s.indexOf(":")>=0){
+    let p = s.split(":");
+    if(p.length>2) return null;
+    let h = p[0]===""?0:parseInt(p[0],10);
+    let m = p[1]===""?0:parseInt(p[1],10);
+    if(isNaN(h)||isNaN(m)) return null;
+    return h*60+m;
+  }
+  let v = parseFloat(s);
+  if(isNaN(v)) return null;
+  return Math.round(v*60);
+}
+function lireKm(txt){
+  let s = String(txt||"").trim().replace(",", ".");
+  if(s==="") return null;
+  let v = parseFloat(s); return isNaN(v)?null:v;
+}
+function heuresTrav(ad,af,pd,pf){
+  if(ad==null||af==null) return 0;
+  let amp = af-ad, pause = (pd!=null&&pf!=null)?(pf-pd):0;
+  let net = amp-pause; return net>0?net:0;
+}
+function fmtHM(min){
+  if(min==null||min<=0) return "00:00";
+  min = Math.round(min); let h=Math.floor(min/60), m=min%60;
+  return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+}
+function fmtKm(v){ if(v==null) return ""; return (Math.round(v*1e6)/1e6).toString(); }
+
+function val(iso,f){
+  let el = document.querySelector(`input[data-iso="${iso}"][data-f="${f}"]`);
+  return el? el.value : "";
+}
+function recalc(){
+  const mois = {total:0,sup35:0,accord39:0,sup39:0};
+  document.querySelectorAll(".semaine").forEach(sem=>{
+    const num = sem.dataset.num;
+    let mins = 0;
+    sem.querySelectorAll("[data-total]").forEach(cell=>{
+      const iso = cell.dataset.total;
+      const ad=parseHeure(val(iso,"amp_d")), af=parseHeure(val(iso,"amp_f"));
+      const pd=parseHeure(val(iso,"pause_d")), pf=parseHeure(val(iso,"pause_f"));
+      const jmin = heuresTrav(ad,af,pd,pf);
+      cell.textContent = fmtHM(jmin);
+      cell.classList.toggle("alerte", jmin>MAX_JOUR);
+      // alerte amplitude > 12h
+      const ampl = (ad!=null&&af!=null)?(af-ad):0;
+      ["amp_d","amp_f"].forEach(f=>{
+        let inp = document.querySelector(`input[data-iso="${iso}"][data-f="${f}"]`);
+        if(inp) inp.classList.toggle("alerte", ampl>720);
+      });
+      // km a vide
+      const kj=lireKm(val(iso,"km_jour")), kc=lireKm(val(iso,"km_com"));
+      const vcell = document.querySelector(`[data-vide="${iso}"]`);
+      if(vcell) vcell.textContent = (kj==null&&kc==null)?"":fmtKm((kj||0)-(kc||0));
+      mins += jmin;
+    });
+    const total = mins;
+    const sup35 = Math.max(0,total-DUREE_LEGALE);
+    const supAcc = Math.max(0,total-SEUIL);
+    const accord = sup35-supAcc;
+    const t = sem.querySelector(`[data-w="${num}"][data-k="total"]`);
+    t.textContent = fmtHM(total) + (total>MAX_SEMAINE?"  ⚠>48h":"");
+    t.classList.toggle("alerte", total>MAX_SEMAINE);
+    sem.querySelector(`[data-w="${num}"][data-k="sup35"]`).textContent = fmtHM(sup35);
+    sem.querySelector(`[data-w="${num}"][data-k="accord39"]`).textContent = fmtHM(accord);
+    sem.querySelector(`[data-w="${num}"][data-k="sup39"]`).textContent = fmtHM(supAcc);
+    mois.total+=total; mois.sup35+=sup35; mois.accord39+=accord; mois.sup39+=supAcc;
+  });
+  for(const k of ["total","sup35","accord39","sup39"]){
+    let el = document.querySelector(`[data-m="${k}"]`);
+    if(el) el.textContent = fmtHM(mois[k]);
+    let c = document.querySelector(`[data-mc="${k}"]`);
+    if(c) c.textContent = "("+(mois[k]/60).toFixed(2)+")";
+  }
+}
+// auto ':' dans les champs horaires (0615 -> 06:15)
+document.querySelectorAll("input.hh").forEach(inp=>{
+  inp.addEventListener("keyup", e=>{
+    if(["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key)) {recalc();return;}
+    let s = inp.value;
+    if(s.indexOf(":")<0){
+      let d = s.replace(/\D/g,"").slice(0,4);
+      if(d.length>=3){ inp.value = d.slice(0,2)+":"+d.slice(2); }
+    }
+    recalc();
+  });
+});
+document.querySelectorAll("input.km").forEach(i=>i.addEventListener("keyup",recalc));
+if(document.getElementById("grille")) recalc();
+</script>
+{% endblock %}

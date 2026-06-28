@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Comptes — Suivi des heures{% endblock %}
+{% block content %}
+<h1 class="page">🔐 Comptes utilisateurs</h1>
+<p class="sous">Chaque compte a un <b>rôle</b> (Administrateur ou Utilisateur) et peut
+   être <b>rattaché à un salarié</b> (facultatif). Un « Utilisateur » accède
+   seulement à sa page « Ma journée » pour saisir ses heures.</p>
+
+<ul class="liste">
+  {% for u in users %}
+  <li>
+    <span class="principal">{{ u.login }}</span>
+    {% if u.is_admin %}
+      <span class="badge badge-admin">Administrateur</span>
+    {% else %}
+      <span class="badge badge-user">Utilisateur</span>
+    {% endif %}
+    <span class="cent">— salarié : {{ u.salarie_nom }}</span>
+
+    <form method="post" style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input type="hidden" name="action" value="modifier">
+      <input type="hidden" name="uid" value="{{ u.id }}">
+      <select name="salarie_id" style="width:170px">
+        <option value="">— Aucun salarié —</option>
+        {% for s in sals %}
+          <option value="{{ s['id'] }}" {{ 'selected' if s['id']==u.salarie_id }}>{{ noms[s['id']] }}</option>
+        {% endfor %}
+      </select>
+      <label style="font-weight:600;white-space:nowrap">
+        <input type="checkbox" name="admin" {{ 'checked' if u.is_admin }}> Admin
+      </label>
+      <button class="btn btn-bleu btn-sm" type="submit">💾</button>
+    </form>
+
+    <form method="post" style="display:flex;gap:6px;align-items:center">
+      <input type="hidden" name="action" value="motdepasse">
+      <input type="hidden" name="login" value="{{ u.login }}">
+      <input type="password" name="password" placeholder="Nouveau mdp" style="width:130px" required>
+      <button class="btn btn-gris btn-sm" type="submit">Mdp</button>
+    </form>
+
+    <form method="post" onsubmit="return confirm('Supprimer le compte {{ u.login }} ?')">
+      <input type="hidden" name="action" value="supprimer">
+      <input type="hidden" name="uid" value="{{ u.id }}">
+      <button class="btn btn-gris btn-sm" type="submit"
+        {{ 'disabled title="Dernier admin"' if u.is_admin and nb_admins<=1 }}>🗑</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+
+<div class="carte" style="margin-top:14px">
+  <div class="entete">➕ Créer un compte</div>
+  <form method="post" class="grid-form">
+    <input type="hidden" name="action" value="ajouter">
+    <div><label>Identifiant</label><input type="text" name="login" required></div>
+    <div><label>Mot de passe</label><input type="password" name="password" required></div>
+    <div>
+      <label>Salarié rattaché</label>
+      <select name="salarie_id">
+        <option value="">— Aucun —</option>
+        {% for s in sals %}
+          <option value="{{ s['id'] }}">{{ noms[s['id']] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><label>Rôle</label>
+      <label style="font-weight:500"><input type="checkbox" name="admin"> Administrateur</label>
+    </div>
+    <div><button class="btn btn-rouge" type="submit">Créer</button></div>
+  </form>
+  <p class="sous" style="margin-top:8px">Astuce : pour faire d'Angeline Auriol une
+     administratrice, créez son compte en cochant « Administrateur » et en la
+     rattachant à son salarié.</p>
+</div>
+{% endblock %}

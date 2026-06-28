@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Relevé mensuel — Suivi des heures{% endblock %}
+{% block content %}
+<h1 class="page">🧾 Relevé mensuel des heures travaillées</h1>
+<p class="sous">Choisissez le mois, l'année et les salariés à inclure. Le relevé liste,
+   par semaine, les heures travaillées de chaque jour (pauses déduites).</p>
+
+<form method="get" action="{{ url_for('releve') }}">
+  <input type="hidden" name="go" value="1">
+  <div class="barre">
+    <label>Année :</label>
+    <input type="number" name="annee" value="{{ annee }}" min="2000" max="2100" style="width:90px">
+    <label>Mois :</label>
+    <select name="mois">
+      {% for nom in MOIS_NOMS %}
+        <option value="{{ loop.index }}" {{ 'selected' if loop.index==mois }}>{{ nom }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="carte">
+    <div class="entete">Salariés à inclure</div>
+    <label style="display:block;margin-bottom:8px;font-weight:600">
+      <input type="checkbox" id="tous" checked onclick="document.querySelectorAll('.cs').forEach(c=>c.checked=this.checked)">
+      Tout cocher / décocher
+    </label>
+    <div class="grid-form" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      {% for s in sals %}
+        <label style="font-weight:500">
+          <input type="checkbox" class="cs" name="sid" value="{{ s['id'] }}"
+            {{ 'checked' if s['id'] in selection }}>
+          {{ s['prenom'] ~ ' ' ~ s['nom'] if s['prenom'] else s['nom'] }}
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="margin-top:14px;display:flex;gap:10px">
+    <button class="btn btn-rouge" type="submit">🖨 Aperçu / Imprimer</button>
+    <button class="btn btn-gris" type="submit" formaction="{{ url_for('releve_excel') }}">⬇ Export Excel</button>
+  </div>
+</form>
+{% endblock %}

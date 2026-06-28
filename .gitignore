@@ -1,0 +1,14 @@
+# Environnement local
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Secrets et données — NE JAMAIS publier
+.secret_key
+*.db
+*.db-wal
+*.db-shm
+
+# Divers
+.DS_Store

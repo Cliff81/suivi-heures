@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Suivi des heures{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if app_user %}
+<header class="banniere">
+  <span class="titre">🚑 Suivi des heures <span class="urg">— Accord 39h</span></span>
+  {% if app_is_admin %}
+  <nav>
+    {% set ep = request.endpoint %}
+    <a href="{{ url_for('saisie') }}" class="{{ 'actif' if ep=='saisie' }}">Saisie</a>
+    <a href="{{ url_for('recap') }}" class="{{ 'actif' if ep=='recap' }}">Récapitulatif</a>
+    <a href="{{ url_for('recap_global') }}" class="{{ 'actif' if ep=='recap_global' }}">Récap global</a>
+    <a href="{{ url_for('releve') }}" class="{{ 'actif' if ep in ('releve','releve_excel') }}">Relevé</a>
+    <a href="{{ url_for('conversion') }}" class="{{ 'actif' if ep=='conversion' }}">Conversion</a>
+    <a href="{{ url_for('salaries') }}" class="{{ 'actif' if ep=='salaries' }}">Salariés</a>
+    <a href="{{ url_for('comptes') }}" class="{{ 'actif' if ep=='comptes' }}">Comptes</a>
+  </nav>
+  {% endif %}
+  <span class="user">
+    👤 {{ app_user }}{% if not app_is_admin %} <span style="opacity:.8">(salarié)</span>{% endif %}
+    <a href="{{ url_for('logout') }}">Déconnexion</a>
+  </span>
+</header>
+{% endif %}
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

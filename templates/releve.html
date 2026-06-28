@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Relevé {{ mois_nom }} {{ annee }}{% endblock %}
+{% block content %}
+
+<div class="barre no-print">
+  <a class="btn btn-gris btn-sm" href="{{ url_for('releve', annee=annee, mois=mois) }}">← Modifier la sélection</a>
+  <button class="btn btn-rouge" onclick="window.print()">🖨 Imprimer / PDF</button>
+  <a class="btn btn-bleu btn-sm" href="{{ url_for('releve_excel') }}?{{ request.query_string.decode() }}">⬇ Export Excel</a>
+  <span class="sous spacer" style="margin:0">{{ rapports|length }} salarié(s) — {{ mois_nom }} {{ annee }}</span>
+</div>
+
+{% if not rapports %}
+  <p class="sous">Aucun salarié sélectionné.</p>
+{% endif %}
+
+{% for r in rapports %}
+<div class="releve">
+  <div class="releve-tete">
+    <div>
+      <div class="marque">🚑 Ambulances &amp; Transport</div>
+      <div class="doc-titre">RELEVÉ MENSUEL DES HEURES TRAVAILLÉES</div>
+    </div>
+    <div class="periode">
+      <div class="mois">{{ mois_nom }} {{ annee }}</div>
+      <div class="edite">Édité le {{ edite }}</div>
+    </div>
+  </div>
+
+  <div class="releve-salarie">
+    <span class="nom">{{ r.nom }}</span>
+    <span class="meta">Durée contractuelle : {{ r.duree }}/sem. · {{ r.njours }} jour(s) travaillé(s)</span>
+  </div>
+
+  <div class="semaines-grille">
+    {% for w in r.weeks %}
+    <table class="releve-tab">
+      <thead>
+        <tr><th colspan="3">Semaine {{ w.num }}</th></tr>
+        <tr><th>Jour</th><th>Date</th><th>Heures</th></tr>
+      </thead>
+      <tbody>
+      {% for j in w.jours %}
+        <tr class="{{ 'repos' if j.repos }}">
+          <td>{{ j.jour }}</td><td>{{ j.date }}</td>
+          <td class="h">{{ j.h }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Total semaine</td><td class="h">{{ w.total }}</td></tr>
+      </tfoot>
+    </table>
+    {% endfor %}
+  </div>
+
+  <div class="releve-total">
+    <span>TOTAL DU MOIS</span>
+    <span class="val">{{ r.total }} <small>({{ r.total_cent }} h)</small></span>
+  </div>
+
+  <div class="signatures">
+    <div><div class="ligne-sig"></div>Signature du salarié</div>
+    <div><div class="ligne-sig"></div>Signature de l'employeur</div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

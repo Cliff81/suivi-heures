@@ -1,0 +1,239 @@
+:root{
+  --rouge:#C8102E; --rouge-fonce:#9E0B22; --bleu:#0B4F8A; --bleu-clair:#1565C0;
+  --bleu-pale:#E3EEF7; --fond:#EEF3F7; --vert:#1B7F3B; --gris:#8A99A8;
+  --jaune:#FFD400; --blanc:#FFFFFF;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  background:var(--fond);color:#1A1A1A;font-size:14px}
+a{color:var(--bleu-clair);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Banniere */
+header.banniere{background:var(--bleu);color:#fff;border-bottom:5px solid var(--jaune);
+  display:flex;align-items:center;gap:16px;padding:10px 18px;flex-wrap:wrap}
+header.banniere .titre{font-size:19px;font-weight:700}
+header.banniere .titre .urg{color:var(--jaune)}
+header.banniere nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:8px}
+header.banniere nav a{color:#fff;padding:6px 12px;border-radius:6px;font-weight:600}
+header.banniere nav a:hover{background:rgba(255,255,255,.15);text-decoration:none}
+header.banniere nav a.actif{background:var(--rouge)}
+header.banniere .user{margin-left:auto;display:flex;align-items:center;gap:10px;
+  font-size:13px}
+header.banniere .user a{background:var(--rouge);padding:5px 10px;border-radius:6px}
+
+main{max-width:1200px;margin:18px auto;padding:0 16px}
+
+/* Barre d'outils */
+.barre{background:#fff;border:1px solid #d7e1ea;border-radius:10px;
+  padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:14px}
+.barre label{font-weight:600}
+select,input[type=text],input[type=number],input[type=password]{
+  padding:6px 8px;border:1px solid #b9c7d4;border-radius:6px;font-size:14px;
+  background:#fff}
+input:focus,select:focus{outline:2px solid var(--bleu-clair);outline-offset:0}
+
+/* Boutons */
+.btn{border:0;border-radius:7px;padding:8px 14px;font-weight:700;cursor:pointer;
+  font-size:14px}
+.btn-rouge{background:var(--rouge);color:#fff}
+.btn-rouge:hover{background:var(--rouge-fonce)}
+.btn-bleu{background:var(--bleu-clair);color:#fff}
+.btn-bleu:hover{background:var(--bleu)}
+.btn-gris{background:#dde5ec;color:#234}
+.btn-sm{padding:5px 9px;font-size:13px}
+.spacer{margin-left:auto}
+
+/* Titres */
+h1.page{color:var(--rouge);font-size:20px;margin:0 0 4px}
+.sous{color:var(--gris);font-size:13px;margin:0 0 12px}
+
+/* Cartes / semaines */
+.carte{background:#fff;border:1px solid #d7e1ea;border-radius:10px;padding:14px;
+  margin-bottom:14px}
+.carte > .entete{font-weight:700;color:var(--bleu);margin-bottom:8px}
+
+/* Tables */
+table{border-collapse:collapse;width:100%;background:#fff}
+table.grille td,table.grille th{border:1px solid #d7e1ea;padding:4px;text-align:center}
+table.grille th{background:var(--bleu);color:#fff;font-size:12px;font-weight:700}
+table.grille td.jour{text-align:left;font-weight:600;white-space:nowrap}
+tr.weekend td.jour,tr.weekend td.date{color:var(--bleu-clair)}
+tr.hors td{color:var(--gris);background:#f4f7fa}
+td input{width:74px;text-align:center;padding:4px}
+td input.km{width:70px}
+td.calc{background:#E7ECF1;color:var(--bleu);font-weight:600}
+td.total{font-weight:700;color:var(--vert)}
+td.total.alerte{color:var(--rouge)}
+input.alerte{background:#FFD6D6}
+
+.tot-sem{margin-top:8px;display:flex;gap:18px;flex-wrap:wrap;font-weight:600;
+  border-top:1px solid #d7e1ea;padding-top:8px}
+.tot-sem .lib{color:#456}
+.k-total{color:var(--bleu)} .k-total.alerte{color:var(--rouge)}
+.k-sup35{color:var(--rouge)} .k-accord39{color:var(--vert)} .k-sup39{color:var(--rouge-fonce)}
+
+/* Total mois */
+.total-mois{background:#fff;border:1px solid #d7e1ea;border-radius:10px;padding:16px}
+.total-mois h2{margin:0 0 10px;color:var(--bleu);font-size:16px}
+.total-mois .lignes div{margin:3px 0}
+.total-mois .v{font-weight:700;font-size:16px;margin:0 6px}
+.cent{color:#777}
+
+.compteur{background:var(--bleu-pale);border:1px solid #b9d3ea;border-radius:10px;
+  padding:14px;margin-top:14px}
+.compteur .solde{font-size:22px;font-weight:800;color:var(--vert)}
+.compteur .solde.neg{color:var(--rouge)}
+
+/* Recap tableau */
+table.recap td,table.recap th{border:1px solid #d7e1ea;padding:6px;text-align:center;
+  font-size:13px}
+table.recap th{background:var(--bleu);color:#fff}
+table.recap td.lib{text-align:left;font-weight:600;white-space:nowrap}
+table.recap tr.sup td{color:var(--rouge)}
+table.recap tr.conges td{background:var(--bleu-pale);color:var(--bleu);font-weight:700}
+table.recap td.an{font-weight:700;background:#f2f7fb}
+
+/* Conformite */
+.conf{margin-top:14px;border-radius:10px;padding:14px;border:1px solid}
+.conf.ok{background:#e9f7ee;border-color:#a8dab8}
+.conf.ko{background:#fdeaec;border-color:#f0b7be}
+.conf ul{margin:6px 0 0;padding-left:20px}
+.conf li.ok::marker{content:"✅ "}
+.conf li.ko{color:var(--rouge-fonce);font-weight:600}
+.conf li.ko::marker{content:"❌ "}
+
+/* Recap global */
+.bandeau{background:var(--bleu);color:#fff;border-radius:10px;padding:16px 20px;
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
+  gap:10px;margin-bottom:14px}
+.bandeau .gros{font-size:18px;font-weight:800}
+.bandeau .jaune{color:var(--jaune);font-weight:700}
+table.glob td,table.glob th{border:1px solid #d7e1ea;padding:8px;text-align:center}
+table.glob th{background:var(--bleu);color:#fff}
+table.glob td.nom{text-align:left;font-weight:600}
+table.glob tr.tot td{background:var(--rouge);color:#fff;font-weight:800}
+
+/* Listes salaries / comptes */
+ul.liste{list-style:none;padding:0;margin:0}
+ul.liste li{background:#fff;border:1px solid #d7e1ea;border-radius:8px;
+  padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+  flex-wrap:wrap}
+ul.liste li .principal{font-weight:700;color:var(--bleu)}
+ul.liste li form{display:inline;margin:0}
+.grid-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;align-items:end}
+.grid-form label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}
+.grid-form input{width:100%}
+
+/* Badges de role */
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:.3px}
+.badge-admin{background:var(--rouge);color:#fff}
+.badge-user{background:#dde5ec;color:var(--bleu)}
+
+/* Espace salarie : lignes de pause */
+.espace{max-width:760px}
+.deux-champs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.deux-champs label{display:block;font-weight:600;margin-bottom:4px}
+.deux-champs input{width:100%}
+.pause-ligne{display:flex;align-items:center;gap:8px;margin:8px 0}
+.pause-ligne input{flex:1;min-width:0;text-align:center}
+.pause-ligne span{color:var(--gris);font-weight:700}
+.espace input[type=time]{font-size:17px;padding:10px}
+.btn-valider{width:100%;font-size:17px;padding:14px}
+
+/* Flash */
+.flash{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-weight:600}
+.flash.ok{background:#e9f7ee;color:var(--vert);border:1px solid #a8dab8}
+.flash.error{background:#fdeaec;color:var(--rouge-fonce);border:1px solid #f0b7be}
+
+/* Login */
+.login-box{max-width:360px;margin:60px auto;background:#fff;border-radius:12px;
+  border:1px solid #d7e1ea;padding:26px;box-shadow:0 8px 30px rgba(11,79,138,.12)}
+.login-box h1{color:var(--rouge);text-align:center;margin:0 0 6px}
+.login-box .sub{text-align:center;color:var(--gris);margin:0 0 18px}
+.login-box label{font-weight:600;display:block;margin:10px 0 4px}
+.login-box input{width:100%}
+.login-box .btn{width:100%;margin-top:18px}
+
+.conv-libre{margin-top:18px;background:#fff;border:1px solid #d7e1ea;
+  border-radius:10px;padding:16px;display:flex;gap:10px;align-items:center;
+  flex-wrap:wrap}
+.conv-libre .res{font-size:18px;font-weight:800;color:var(--bleu);min-width:90px}
+
+/* Releve mensuel (document imprimable) */
+.releve{background:#fff;border:1px solid #d7e1ea;border-radius:10px;
+  padding:24px;margin-bottom:22px}
+.releve-tete{display:flex;justify-content:space-between;align-items:flex-start;
+  border-bottom:3px solid var(--rouge);padding-bottom:12px;margin-bottom:14px;gap:16px}
+.releve-tete .marque{font-size:15px;font-weight:800;color:var(--bleu)}
+.releve-tete .doc-titre{font-size:18px;font-weight:800;color:var(--rouge);
+  letter-spacing:.4px;margin-top:4px}
+.releve-tete .periode{text-align:right}
+.releve-tete .mois{font-size:18px;font-weight:800;color:var(--bleu)}
+.releve-tete .edite{font-size:12px;color:var(--gris)}
+.releve-salarie{display:flex;justify-content:space-between;align-items:baseline;
+  background:var(--bleu-pale);border:1px solid #b9d3ea;border-radius:8px;
+  padding:8px 14px;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+.releve-salarie .nom{font-size:17px;font-weight:800;color:var(--bleu)}
+.releve-salarie .meta{font-size:12px;color:#456}
+.semaines-grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  gap:14px}
+table.releve-tab{border-collapse:collapse;width:100%;border:1px solid #cfdae5}
+table.releve-tab th,table.releve-tab td{border:1px solid #cfdae5;padding:5px 8px;
+  font-size:13px;text-align:left}
+table.releve-tab thead tr:first-child th{background:var(--bleu);color:#fff;
+  text-align:center;font-size:13px}
+table.releve-tab thead tr:last-child th{background:#1565C0;color:#fff;font-size:12px}
+table.releve-tab td.h{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+table.releve-tab tr.repos td{color:var(--gris);font-style:italic}
+table.releve-tab tfoot td{background:#eef3f7;font-weight:700;color:var(--vert)}
+.releve-total{display:flex;justify-content:space-between;align-items:center;
+  margin-top:16px;background:var(--bleu);color:#fff;border-radius:8px;
+  padding:12px 18px;font-size:17px;font-weight:800}
+.releve-total .val small{color:var(--jaune);font-weight:700}
+.signatures{display:flex;justify-content:space-between;gap:40px;margin-top:34px}
+.signatures > div{flex:1;text-align:center;font-size:12px;color:#456}
+.signatures .ligne-sig{border-top:1px solid #99a;margin:0 10px 6px;height:38px}
+
+@media print{
+  body{background:#fff}
+  header.banniere,.no-print,.flash{display:none !important}
+  main{margin:0;max-width:none;padding:0}
+  .releve{border:0;border-radius:0;padding:0 6mm;margin:0;
+    page-break-after:always}
+  .releve:last-child{page-break-after:auto}
+  .semaines-grille{grid-template-columns:repeat(2,1fr)}
+  table.releve-tab,.releve,.releve-total{box-shadow:none}
+}
+
+/* --- Smartphone (saisie salarié confortable au doigt) --- */
+@media (max-width:600px){
+  body{font-size:15px}
+  header.banniere{gap:8px;padding:10px 12px}
+  header.banniere .titre{font-size:16px;width:100%}
+  header.banniere .user{margin-left:0;width:100%;justify-content:space-between}
+  main{margin:12px auto;padding:0 12px}
+  h1.page{font-size:19px}
+
+  /* Champs et boutons : grandes cibles tactiles */
+  input,select,.btn{font-size:16px}              /* >=16px évite le zoom iOS */
+  .btn{padding:12px 16px}
+  .carte{padding:14px}
+
+  /* Espace « Ma journée » */
+  .deux-champs{grid-template-columns:1fr}        /* arrivée/départ empilés */
+  .espace input[type=time]{font-size:19px;padding:12px}
+  .pause-ligne input{padding:12px;font-size:18px}
+  .pause-ligne .btn-sm{padding:10px 12px}
+  .btn-valider{padding:16px;font-size:18px}
+
+  /* Historique du mois : pleine largeur, lisible */
+  .espace table.grille{width:100%}
+  .espace table.grille th,.espace table.grille td{padding:8px 6px;font-size:14px}
+
+  /* La grande grille de saisie admin reste scrollable horizontalement */
+  .semaine table.grille{display:block;overflow-x:auto;white-space:nowrap}
+}

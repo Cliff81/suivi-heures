@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Récapitulatif — Suivi des heures{% endblock %}
+{% block content %}
+
+<form class="barre" method="get" action="{{ url_for('recap') }}" id="nav">
+  <label>Année :</label>
+  <input type="number" name="annee" value="{{ annee }}" min="2000" max="2100"
+         style="width:90px" onchange="document.getElementById('nav').submit()">
+  <label>Salarié :</label>
+  <select name="sid" onchange="document.getElementById('nav').submit()">
+    {% for s in sals %}
+      <option value="{{ s['id'] }}" {{ 'selected' if s['id']==sid }}>{{ s['prenom'] ~ ' ' ~ s['nom'] if s['prenom'] else s['nom'] }}</option>
+    {% endfor %}
+  </select>
+  {% if sal %}<a class="btn btn-gris btn-sm spacer" href="{{ url_for('export_excel', annee=annee) }}">⬇ Export Excel</a>{% endif %}
+</form>
+
+{% if not sal %}
+  <p class="sous">Aucun salarié.</p>
+{% else %}
+<h1 class="page">{{ sal['prenom'] }} {{ sal['nom'] }} — {{ annee }}</h1>
+<p class="sous">Valeurs au format HH:MM. « Heures payées » se saisit dans l'onglet Saisie.</p>
+
+<div style="overflow-x:auto">
+<table class="recap">
+  <thead><tr><th></th>
+    {% for m in mois_court %}<th>{{ m }}</th>{% endfor %}
+    <th>ANNÉE</th></tr></thead>
+  <tbody>
+  {% for l in lignes %}
+    <tr class="{{ l.css }}">
+      <td class="lib">{{ l.libelle }}</td>
+      {% for c in l.cellules %}<td>{{ c }}</td>{% endfor %}
+      <td class="an">{{ l.total }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="conf {{ 'ok' if conf.ok else 'ko' }}">
+  <b>⚖ Conformité légale</b>
+  <ul>
+    {% for ok, msg in conf.msgs %}
+      <li class="{{ 'ok' if ok else 'ko' }}">{{ msg }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

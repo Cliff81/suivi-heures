@@ -1,0 +1,23 @@
+# Configuration pour un deploiement sur Render (https://render.com)
+# -> Choisir la region Frankfurt (UE) pour heberger les donnees en Europe.
+services:
+  - type: web
+    name: suivi-heures
+    runtime: python
+    region: frankfurt
+    plan: starter          # disque persistant requis (offre payante ~7$/mois)
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --bind 0.0.0.0:$PORT --timeout 60
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true        # cle de session generee et persistante
+      - key: HTTPS_ONLY
+        value: "1"
+      - key: SUIVI_DB
+        value: /data/heures.db     # base sur le disque persistant (voir disk)
+      - key: PYTHON_VERSION
+        value: "3.12.4"
+    disk:
+      name: donnees
+      mountPath: /data             # disque persistant : conserve heures.db
+      sizeGB: 1
