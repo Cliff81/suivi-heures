@@ -57,6 +57,23 @@
     </div>
 
     <div style="margin-top:18px">
+      <label style="font-weight:600">Kilomètres (facultatif)</label>
+      <div class="deux-champs" style="margin-top:4px">
+        <div>
+          <label style="font-weight:500">Km jour</label>
+          <input type="number" step="0.1" min="0" inputmode="decimal" name="km_jour"
+                 id="km_jour" placeholder="0" value="{{ saisie.km_jour if saisie else '' }}">
+        </div>
+        <div>
+          <label style="font-weight:500">Km commercial</label>
+          <input type="number" step="0.1" min="0" inputmode="decimal" name="km_com"
+                 id="km_com" placeholder="0" value="{{ saisie.km_com if saisie else '' }}">
+        </div>
+      </div>
+      <p class="sous" id="kmvide" style="margin:8px 0 0">Km à vide (jour − commercial) : <b>—</b></p>
+    </div>
+
+    <div style="margin-top:18px">
       <button class="btn btn-rouge btn-valider" type="submit">💾 Valider ma journée</button>
     </div>
   </form>
@@ -65,13 +82,14 @@
   <div class="carte">
     <div class="entete">Mes journées de ce mois</div>
     <table class="grille" style="max-width:520px">
-      <thead><tr><th>Jour</th><th>Arrivée → Départ</th><th>Travaillé</th></tr></thead>
+      <thead><tr><th>Jour</th><th>Arrivée → Départ</th><th>Travaillé</th><th>Km jour</th></tr></thead>
       <tbody>
       {% for h in histo %}
         <tr class="{{ 'weekend' if h.aujourdhui }}">
           <td class="jour" style="text-transform:capitalize">{{ h.date }}{{ " (aujourd'hui)" if h.aujourdhui }}</td>
           <td>{{ h.amp }}</td>
           <td class="total">{{ h.travail }}</td>
+          <td>{{ h.km }}</td>
         </tr>
       {% endfor %}
       </tbody>
@@ -96,5 +114,19 @@ function ajouterPause(){
   div.querySelector("button").onclick = ()=>div.remove();
   wrap.appendChild(div);
 }
+// Km a vide = km jour - km commercial (calcul en direct)
+function majKmVide(){
+  const kj = parseFloat((document.getElementById("km_jour").value||"").replace(",","."));
+  const kc = parseFloat((document.getElementById("km_com").value||"").replace(",","."));
+  const out = document.querySelector("#kmvide b");
+  if(isNaN(kj) && isNaN(kc)){ out.textContent = "—"; return; }
+  const v = (isNaN(kj)?0:kj) - (isNaN(kc)?0:kc);
+  out.textContent = (Math.round(v*100)/100) + " km";
+}
+["km_jour","km_com"].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener("input", majKmVide);
+});
+majKmVide();
 </script>
 {% endblock %}

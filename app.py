@@ -777,9 +777,13 @@ def espace():
             pd_db, pf_db = 0, ptot
         else:
             pd_db, pf_db = None, None
+        km_jour = _lire_km(request.form.get("km_jour", ""))
+        km_com = _lire_km(request.form.get("km_com", ""))
+        km_vide = (None if (km_jour is None and km_com is None)
+                   else (km_jour or 0) - (km_com or 0))
         db.enregistrer_jour(sid, iso, {
             "amp_d": amp_d, "amp_f": amp_f, "pause_d": pd_db, "pause_f": pf_db,
-            "km_jour": None, "km_com": None, "km_vide": None})
+            "km_jour": km_jour, "km_com": km_com, "km_vide": km_vide})
         db.commit()
         db.set_pauses_jour(sid, iso, paires)
         flash("Journée enregistrée.", "ok")
@@ -796,6 +800,9 @@ def espace():
         saisie_jour = {
             "amp_d": fmt_hm(jour["amp_d"]) if jour["amp_d"] is not None else "",
             "amp_f": fmt_hm(jour["amp_f"]) if jour["amp_f"] is not None else "",
+            "km_jour": fmt_km(jour["km_jour"]),
+            "km_com": fmt_km(jour["km_com"]),
+            "km_vide": fmt_km(jour["km_vide"]),
             "travail": fmt_hm(heures_travaillees(
                 jour["amp_d"], jour["amp_f"], jour["pause_d"], jour["pause_f"])),
         }
@@ -813,6 +820,7 @@ def espace():
                     if j["amp_d"] is not None and j["amp_f"] is not None else "—"),
             "travail": fmt_hm(heures_travaillees(
                 j["amp_d"], j["amp_f"], j["pause_d"], j["pause_f"])),
+            "km": fmt_km(j["km_jour"]) or "—",
             "aujourdhui": d_iso == iso,
         })
 
