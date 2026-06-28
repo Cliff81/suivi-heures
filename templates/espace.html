@@ -16,7 +16,7 @@
   {% if saisie %}
     <div class="carte" style="border-left:5px solid var(--vert)">
       <div class="entete" style="color:var(--vert)">✅ Journée enregistrée</div>
-      <p style="margin:6px 0">Arrivée <b>{{ saisie.amp_d }}</b> · Départ <b>{{ saisie.amp_f }}</b>
+      <p style="margin:6px 0">Prise de service <b>{{ saisie.amp_d }}</b> · Fin de service <b>{{ saisie.amp_f }}</b>
          · Temps de travail : <b style="color:var(--vert)">{{ saisie.travail }}</b></p>
       <p class="sous" style="margin:4px 0 0">Vous pouvez encore corriger votre saisie
          aujourd'hui. Elle sera verrouillée demain.</p>
@@ -29,12 +29,12 @@
 
     <div class="deux-champs">
       <div>
-        <label>Heure d'arrivée</label>
+        <label>🚑 Prise de service</label>
         <input type="time" name="amp_d" inputmode="numeric"
                value="{{ saisie.amp_d if saisie else '' }}" required>
       </div>
       <div>
-        <label>Heure de départ</label>
+        <label>🏁 Fin de service</label>
         <input type="time" name="amp_f" inputmode="numeric"
                value="{{ saisie.amp_f if saisie else '' }}" required>
       </div>
@@ -73,7 +73,7 @@
   <div class="carte">
     <div class="entete">Mes journées de ce mois</div>
     <table class="grille" style="max-width:520px">
-      <thead><tr><th>Jour</th><th>Arrivée → Départ</th><th>Travaillé</th><th>Km jour</th></tr></thead>
+      <thead><tr><th>Jour</th><th>Prise → Fin</th><th>Travaillé</th><th>Km jour</th></tr></thead>
       <tbody>
       {% for h in histo %}
         <tr class="{{ 'weekend' if h.aujourdhui }}">
