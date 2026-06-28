@@ -141,7 +141,7 @@ ul.liste li form{display:inline;margin:0}
 .pause-ligne{display:flex;align-items:center;gap:8px;margin:8px 0}
 .pause-ligne input{flex:1;min-width:0;text-align:center}
 .pause-ligne span{color:var(--gris);font-weight:700}
-.espace input[type=time]{font-size:17px;padding:10px}
+.espace input[type=time],.espace input[type=number]{font-size:17px;padding:10px}
 .btn-valider{width:100%;font-size:17px;padding:14px}
 
 /* Flash */
@@ -225,7 +225,7 @@ table.releve-tab tfoot td{background:#eef3f7;font-weight:700;color:var(--vert)}
 
   /* Espace « Ma journée » */
   .deux-champs{grid-template-columns:1fr}        /* arrivée/départ empilés */
-  .espace input[type=time]{font-size:19px;padding:12px}
+  .espace input[type=time],.espace input[type=number]{font-size:19px;padding:12px}
   .pause-ligne input{padding:12px;font-size:18px}
   .pause-ligne .btn-sm{padding:10px 12px}
   .btn-valider{padding:16px;font-size:18px}
