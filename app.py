@@ -1142,7 +1142,9 @@ def _optimiser(db, date_iso):
     adresses += [l["depose_adresse"] for l in lignes]
     adresses = sorted({(a or "").strip() for a in adresses if (a or "").strip()})
 
-    yield {"genre": "etape", "texte": f"Localisation de {len(adresses)} adresse(s)"}
+    yield {"genre": "etape", "texte":
+           f"Localisation de {len(adresses)} adresse(s) "
+           f"— {carto.geocodeur_libelle()}"}
     budget = carto.Budget()
     coords, manquantes = {}, []
     for i, a in enumerate(adresses, 1):
@@ -1154,9 +1156,15 @@ def _optimiser(db, date_iso):
                    "ok": False}
         else:
             coords[a] = (point[0], point[1])
-            yield {"genre": "detail",
-                   "texte": f"{i}/{len(adresses)} — {a}"
-                            + ("" if deja else " (nouvelle)"), "ok": True}
+            # On montre l'adresse retenue quand elle differe de la saisie :
+            # un mauvais rapprochement fausserait toute la tournee en silence.
+            retenue = (point[2] or "").strip()
+            texte = f"{i}/{len(adresses)} — {a}"
+            if retenue and retenue.lower() != a.lower():
+                texte += f"  →  {retenue}"
+            elif not deja:
+                texte += " (nouvelle)"
+            yield {"genre": "detail", "texte": texte, "ok": True}
 
     salaries = [{
         "id": d["salarie_id"],

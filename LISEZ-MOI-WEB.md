@@ -65,11 +65,20 @@ Ce qui entre dans le calcul :
 Chaque course peut porter une **heure de rendez-vous à destination** :
 l'écran affiche l'avance ou le retard prévu, et signale les retards.
 
-### Durées de trajet
+### Adresses et durées de trajet
+Les adresses sont localisées par la **Base Adresse Nationale**, le service
+public français : gratuit, sans clé, et les adresses ne quittent pas la
+France. Pendant le calcul, l'écran affiche l'adresse *retenue* en face de
+celle que vous avez saisie — si le rapprochement est mauvais, vous le voyez
+tout de suite et vous corrigez la fiche.
+
+Les durées de trajet et l'attribution automatique, elles, passent par le
+service de cartographie et demandent une clé (`SUIVI_CARTO_CLE`, voir
+`DEPLOIEMENT.md`). Sans clé, les durées se saisissent à la main la première
+fois puis sont mémorisées, et les courses s'attribuent à la main.
+
 Une durée corrigée à la main est marquée *manuel* : elle prime sur le service
-de cartographie et resservira à toutes les tournées qui font le même trajet.
-Sans clé (`SUIVI_CARTO_CLE`, voir `DEPLOIEMENT.md`), toutes les durées se
-saisissent ainsi la première fois, puis sont mémorisées.
+et resservira à toutes les tournées qui font le même trajet.
 
 ## Notes techniques
 

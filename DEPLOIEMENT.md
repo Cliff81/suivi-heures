@@ -56,18 +56,31 @@ La base en ligne démarre vide. Pour repartir de tes données existantes :
 | `SUIVI_DB` | Chemin de la base sur le disque persistant | `/data/heures.db` |
 | `HTTPS_ONLY` | Cookies sécurisés derrière HTTPS | `1` |
 | `PORT` | Port d'écoute (fourni par l'hébergeur) | (auto) |
-| `SUIVI_CARTO_CLE` | Clé du service de cartographie, pour les durées de trajet des tournées. **Sans elle, aucune adresse ne sort du serveur** et les durées se saisissent à la main. | (vide) |
+| `SUIVI_CARTO_CLE` | Clé du service de cartographie, pour les **durées de trajet et l'optimisation**. Sans elle, les durées se saisissent à la main et l'attribution automatique est indisponible. | (vide) |
+| `SUIVI_GEO` | Géocodeur : `ban` (Base Adresse Nationale, défaut), `carto` (le service de cartographie), `auto` (BAN puis repli) | `ban` |
+| `SUIVI_GEO_URL` | Service de géocodage | `https://api-adresse.data.gouv.fr/search/` |
 | `SUIVI_CARTO_URL` | Service utilisé | `https://api.openrouteservice.org` |
 | `SUIVI_CARTO_PAYS` | Pays privilégié au géocodage | `FRA` |
 | `SUIVI_CARTO_PROFIL` | Profil de trajet | `driving-car` |
 
 ### Tournées et données personnelles
 Les fiches clients contiennent des données de santé (nom, adresse, type de
-transport). Si `SUIVI_CARTO_CLE` est renseignée, **l'adresse seule** part vers
-le service de cartographie, une fois par adresse : coordonnées et durées sont
-ensuite relues dans la base. OpenRouteService héberge en Allemagne (UE). Avant
-d'activer la clé, vérifiez que ce transfert entre dans votre registre de
-traitements.
+transport). Le traitement est découpé pour limiter ce qui sort :
+
+- **Les adresses** vont à la **Base Adresse Nationale**, service public
+  français : elles ne quittent pas la France, et aucune clé n'est nécessaire.
+- **Seules les coordonnées** (latitude, longitude) partent ensuite vers le
+  service de cartographie, pour les durées de trajet et l'optimisation.
+  OpenRouteService héberge en Allemagne (UE).
+
+Les coordonnées d'un domicile restent une donnée de localisation : le
+transfert est réduit, pas supprimé. Il a sa place dans votre registre de
+traitements. Chaque adresse et chaque trajet n'est demandé qu'une fois, le
+résultat est conservé en base.
+
+`SUIVI_GEO=carto` renvoie le géocodage vers la cartographie — nécessaire
+seulement pour des adresses hors de France, que la Base Adresse Nationale ne
+connaît pas.
 
 ## Alternatives
 - **Hébergeurs français / UE** : Scalingo, Clever Cloud (RGPD, données en France).

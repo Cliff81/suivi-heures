@@ -23,6 +23,16 @@ import urllib.request
 
 from core import cle_adresse
 
+# Geocodage : par defaut la Base Adresse Nationale, le service public
+# francais. Gratuit, sans cle, et surtout les adresses des patients ne
+# quittent pas la France — seules des coordonnees partent ensuite vers le
+# service de trajet. Mettre SUIVI_GEO=carto pour repasser par la
+# cartographie (adresses hors de France, par exemple).
+GEOCODEUR = os.environ.get("SUIVI_GEO", "ban").strip().lower()
+BAN_URL = os.environ.get("SUIVI_GEO_URL",
+                         "https://api-adresse.data.gouv.fr/search/")
+BAN_SCORE_MIN = 0.3     # en dessous, le rapprochement est trop douteux
+
 CLE = os.environ.get("SUIVI_CARTO_CLE", "").strip()
 BASE = os.environ.get("SUIVI_CARTO_URL",
                       "https://api.openrouteservice.org").rstrip("/")
@@ -35,8 +45,17 @@ BUDGET_APPELS = 40      # appels reseau max pour une planification
 
 
 def actif():
-    """Le service est-il configure ?"""
+    """Les trajets et l'optimisation sont-ils disponibles ?
+
+    Le geocodage, lui, ne depend pas de cette cle quand il passe par la
+    Base Adresse Nationale.
+    """
     return bool(CLE)
+
+
+def geocodeur_libelle():
+    return ("Base Adresse Nationale" if GEOCODEUR == "ban"
+            else "service de cartographie")
 
 
 class Budget:
@@ -66,6 +85,50 @@ def _get(url):
         return json.loads(rep.read().decode("utf-8"))
 
 
+def _geocoder_ban(adresse):
+    """Base Adresse Nationale -> ((lat, lon, libelle), motif)."""
+    params = {"q": adresse, "limit": "1", "autocomplete": "0"}
+    try:
+        data = _get(BAN_URL + "?" + urllib.parse.urlencode(params))
+    except Exception:
+        return None, "la Base Adresse Nationale n'a pas répondu"
+    try:
+        feats = data.get("features") or []
+        if not feats:
+            return None, f"adresse introuvable : {adresse}"
+        prop = feats[0].get("properties") or {}
+        lon, lat = feats[0]["geometry"]["coordinates"][:2]
+        if (prop.get("score") or 0) < BAN_SCORE_MIN:
+            return None, f"adresse trop imprécise : {adresse}"
+        return (lat, lon, prop.get("label") or adresse), None
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None, "réponse inattendue de la Base Adresse Nationale"
+
+
+def _geocoder_carto(adresse, budget):
+    """Geocodage par le service de cartographie (hors de France, ou repli)."""
+    if not actif():
+        return None, "cartographie non configurée"
+    if budget is not None and not budget.prendre():
+        return None, "trop d'adresses à localiser d'un coup"
+    params = {"api_key": CLE, "text": adresse, "size": "1"}
+    if PAYS:
+        params["boundary.country"] = PAYS
+    try:
+        data = _get(f"{BASE}/geocode/search?" + urllib.parse.urlencode(params))
+    except Exception:
+        return None, "le service de cartographie n'a pas répondu"
+    try:
+        feats = data.get("features") or []
+        if not feats:
+            return None, f"adresse introuvable : {adresse}"
+        lon, lat = feats[0]["geometry"]["coordinates"][:2]
+        libelle = (feats[0].get("properties") or {}).get("label") or adresse
+        return (lat, lon, libelle), None
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None, "réponse inattendue du service de cartographie"
+
+
 def geocoder(db, adresse, budget=None):
     """Adresse -> ((lat, lon, libelle), motif).
 
@@ -80,28 +143,20 @@ def geocoder(db, adresse, budget=None):
     deja = db.geo_lire(adresse)
     if deja is not None and deja["lat"] is not None:
         return (deja["lat"], deja["lon"], deja["libelle"]), None
-    if not actif():
-        return None, "cartographie non configurée"
-    if budget is not None and not budget.prendre():
-        return None, "trop d'adresses à localiser d'un coup"
 
-    params = {"api_key": CLE, "text": adresse, "size": "1"}
-    if PAYS:
-        params["boundary.country"] = PAYS
-    try:
-        data = _get(f"{BASE}/geocode/search?" + urllib.parse.urlencode(params))
-    except Exception:
-        return None, "le service de cartographie n'a pas répondu"
-    try:
-        feats = data.get("features") or []
-        if not feats:
-            return None, f"adresse introuvable : {adresse}"
-        lon, lat = feats[0]["geometry"]["coordinates"][:2]
-        libelle = (feats[0].get("properties") or {}).get("label") or adresse
-    except (KeyError, IndexError, TypeError, ValueError):
-        return None, "réponse inattendue du service de cartographie"
-    db.geo_ecrire(adresse, lat, lon, libelle)
-    return (lat, lon, libelle), None
+    if GEOCODEUR == "ban":
+        point, motif = _geocoder_ban(adresse)
+    elif GEOCODEUR == "auto":
+        point, motif = _geocoder_ban(adresse)
+        if point is None:
+            point, motif = _geocoder_carto(adresse, budget)
+    else:
+        point, motif = _geocoder_carto(adresse, budget)
+
+    if point is None:
+        return None, motif
+    db.geo_ecrire(adresse, point[0], point[1], point[2])
+    return point, None
 
 
 def duree_trajet(db, origine, destination, budget=None):
