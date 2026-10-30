@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ico %}
+{% block title %}Mon compte — Suivi des heures{% endblock %}
+{% block content %}
+<div class="espace">
+
+  <div class="page-head">
+    <div class="titres">
+      <h1>Mon compte</h1>
+      <p class="lede">Identifiant <b>{{ app_user }}</b>
+        {%- if sal %} · fiche salarié {{ nom }}{% endif %}.</p>
+    </div>
+  </div>
+
+  {% if not sal %}
+    <div class="card"><div class="card-body">
+      <p class="lede" style="margin:0">Votre compte n'est rattaché à aucun
+         salarié : il n'y a rien à régler ici pour l'instant. Un administrateur
+         peut faire le rattachement dans l'onglet « Comptes ».</p>
+    </div></div>
+  {% else %}
+  <div class="card">
+    <div class="card-head">
+      <span class="t">{{ ico('epingle') }}Mon adresse de départ</span>
+    </div>
+    <form method="post">
+      <div class="card-body">
+        <div class="field">
+          <label for="adresse">Adresse où je prends le véhicule</label>
+          <input id="adresse" type="text" name="adresse" value="{{ adresse }}"
+                 placeholder="12 rue des Lilas, 31000 Toulouse">
+          <span class="hint">C'est le point de départ de vos tournées. Une
+            tournée peut partir d'ailleurs pour la journée : dans ce cas
+            l'administrateur le précise sur la tournée, et cette adresse-ci
+            n'est pas modifiée.</span>
+        </div>
+      </div>
+      <div class="card-foot">
+        <button class="btn btn-primary" type="submit">
+          {{ ico('enregistrer') }}Enregistrer</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

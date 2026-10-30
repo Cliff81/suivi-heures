@@ -125,6 +125,10 @@ h1,h2,h3{margin:0;line-height:1.25;font-weight:700;letter-spacing:-.01em}
 .app-user .who{
   display:flex;align-items:center;gap:7px;font-weight:600;color:var(--ink);
   max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:5px 8px;border-radius:var(--r-1);
+}
+a.app-user-who:hover,.app-user a.who:hover{
+  background:var(--surface-3);text-decoration:none;
 }
 .app-user .who .ico{color:var(--ink-3)}
 
@@ -378,6 +382,9 @@ tr.hors:hover td{background:var(--surface-2)}
 .tbl td input:hover{background:var(--surface)}
 .tbl td input:focus{background:var(--surface)}
 .tbl td input.km{width:72px}
+/* Un champ horaire porte son sélecteur : il lui faut plus de place. */
+.tbl td input[type=time]{width:108px}
+.tbl td input[type=number]{width:76px}
 input.alerte,.tbl td input.alerte{
   border-color:var(--danger);background:var(--danger-soft);color:var(--danger-2);
 }
@@ -648,6 +655,8 @@ input.alerte,.tbl td input.alerte{
 .tl .t-depose .titre{color:var(--ok)}
 .tl .t-pause .pastille{border-color:var(--warn);background:var(--warn-soft)}
 .tl .t-pause .titre{color:var(--warn)}
+.tl .t-attente .pastille{border-color:var(--line-2);background:var(--surface-3)}
+.tl .t-attente .titre{color:var(--ink-3);font-weight:600}
 .tl .t-depart .pastille,.tl .t-retour .pastille{
   border-color:var(--ink);background:var(--ink)}
 .tl .t-trajet .titre{font-weight:600;color:var(--ink-2)}

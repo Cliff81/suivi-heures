@@ -12,7 +12,7 @@
 {%- endif -%}
 {%- endmacro %}
 
-{% macro deroule(res, tid=None) -%}
+{% macro deroule(res, modifiable=false, action=None) -%}
 <ol class="tl">
   {% for e in res.etapes %}
   <li class="t-{{ e.genre }}{{ ' t-inconnu' if e.inconnu }}">
@@ -25,8 +25,8 @@
       {% endif %}
       {% if e.detail %}<span class="detail">{{ e.detail }}</span>{% endif %}
 
-      {% if tid and e.genre == 'trajet' and e.origine and e.destination %}
-        <form method="post" action="{{ url_for('tournee_fiche', tid=tid) }}">
+      {% if modifiable and e.genre == 'trajet' and e.origine and e.destination %}
+        <form method="post" action="{{ action }}">
           <input type="hidden" name="action" value="trajet">
           <input type="hidden" name="origine" value="{{ e.origine }}">
           <input type="hidden" name="destination" value="{{ e.destination }}">
@@ -66,6 +66,8 @@
     <span class="val">{{ fmt_hm(res.totaux.stationnement) }}</span></div>
   <div class="stat"><span class="lib">Repos</span>
     <span class="val">{{ fmt_hm(res.totaux.pause) }}</span></div>
+  <div class="stat"><span class="lib">Attente</span>
+    <span class="val">{{ fmt_hm(res.totaux.attente) }}</span></div>
 </div>
 {%- endmacro %}
 

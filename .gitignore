@@ -6,6 +6,7 @@ __pycache__/
 
 # Secrets et données — NE JAMAIS publier
 .secret_key
+.env
 *.db
 *.db-wal
 *.db-shm

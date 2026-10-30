@@ -22,6 +22,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 import core
 import carto
+import optim
 import tournee as plan
 from core import (DB, DB_PATH, MOIS_NOMS, JOURS_NOMS, SEUIL_ACCORD,
                   MAX_JOUR, MAX_SEMAINE, TYPES_TRANSPORT, INSTALLATION_DEFAUT,
@@ -922,54 +923,331 @@ def _installation(course, client):
     return INSTALLATION_DEFAUT.get(type_t, 5)
 
 
-def _preparer(db, t):
-    """Resout les adresses et les durees, puis deroule la tournee."""
-    sal = db.salarie(t["salarie_id"])
-    depart = (t["depart_adresse"] or "").strip()
-    if not depart and sal is not None:
-        depart = (sal["adresse"] or "").strip()
+def _coords_du_jour(db, adresses):
+    """Geocode une fois toutes les adresses de la journee."""
+    budget = carto.Budget()
+    coords, manquantes = {}, []
+    for a in sorted({(x or "").strip() for x in adresses if (x or "").strip()}):
+        point, motif = carto.geocoder(db, a, budget)
+        if point is None:
+            manquantes.append((a, motif))
+        else:
+            coords[a] = (point[0], point[1])
+    return coords, manquantes
 
-    lignes, courses = [], []
-    for c in db.courses(t["id"]):
-        cl = db.client(c["client_id"]) if c["client_id"] else None
-        prise = (c["prise_adresse"] or "").strip()
-        if not prise and cl is not None:
-            prise = (cl["adresse"] or "").strip()
-        libelle = nom_client(cl) if cl is not None else "Course"
-        ins = _installation(c, cl)
-        lignes.append({
-            "id": c["id"], "client_id": c["client_id"], "libelle": libelle,
-            "prise_adresse": c["prise_adresse"] or "",
-            "prise_effective": prise,
-            "depose_adresse": c["depose_adresse"] or "",
-            "heure_rdv": fmt_hm(c["heure_rdv"]) if c["heure_rdv"] is not None else "",
-            "minutes_installation": c["minutes_installation"],
-            "minutes_stationnement": c["minutes_stationnement"],
-            "installation_retenue": ins,
-            "notes": c["notes"] or "",
-            "domicile": cl is not None and not (c["prise_adresse"] or "").strip(),
-        })
-        courses.append({
-            "libelle": libelle, "prise": prise,
-            "depose": (c["depose_adresse"] or "").strip(),
-            "rdv": c["heure_rdv"], "installation": ins,
-            "stationnement": c["minutes_stationnement"],
-        })
+
+def _adresse_depart(db, date_iso, sid, sal=None):
+    """Point de depart du salarie : celui de la journee, sinon sa fiche."""
+    d = db.dispo(date_iso, sid)
+    if d is not None and (d["adresse_depart"] or "").strip():
+        return d["adresse_depart"].strip()
+    if sal is None:
+        sal = db.salarie(sid)
+    return ((sal["adresse"] or "").strip()) if sal is not None else ""
+
+
+def _ligne_course(db, c):
+    """Vue d'une course : adresses resolues, libelle, temps retenus."""
+    cl = db.client(c["client_id"]) if c["client_id"] else None
+    prise = (c["prise_adresse"] or "").strip()
+    if not prise and cl is not None:
+        prise = (cl["adresse"] or "").strip()
+    return {
+        "id": c["id"], "client_id": c["client_id"],
+        "libelle": nom_client(cl) if cl is not None else "Adresse libre",
+        "prise_adresse": c["prise_adresse"] or "", "prise_effective": prise,
+        "depose_adresse": c["depose_adresse"] or "",
+        "prise_au_plus_tot": c["prise_au_plus_tot"],
+        "arrivee_debut": c["arrivee_debut"], "arrivee_fin": c["arrivee_fin"],
+        "minutes_installation": c["minutes_installation"],
+        "minutes_stationnement": c["minutes_stationnement"],
+        "installation_retenue": _installation(c, cl),
+        "notes": c["notes"] or "", "salarie_id": c["salarie_id"],
+        "position": c["position"],
+        "prise_calc": c["prise_calc"], "depose_calc": c["depose_calc"],
+        "domicile": cl is not None and not (c["prise_adresse"] or "").strip(),
+    }
+
+
+def _deroule(db, date_iso, sid):
+    """Horaires d'un salarie pour la journee, a partir de ses courses.
+
+    Le solveur a decide de l'ordre ; le deroule, lui, reste calcule ici a
+    partir des durees deja connues, comme pour une attribution faite a la main.
+    """
+    sal = db.salarie(sid)
+    d = db.dispo(date_iso, sid)
+    depart = _adresse_depart(db, date_iso, sid, sal)
+    stationnement = (d["minutes_stationnement"] if d is not None
+                     and d["minutes_stationnement"] is not None
+                     else STATIONNEMENT_DEFAUT)
+    lignes = [_ligne_course(db, c) for c in db.courses(date_iso, sid)]
+    courses = [{
+        "libelle": l["libelle"], "prise": l["prise_effective"],
+        "depose": l["depose_adresse"],
+        "rdv": l["arrivee_fin"], "installation": l["installation_retenue"],
+        "stationnement": l["minutes_stationnement"],
+        "prise_au_plus_tot": l["prise_au_plus_tot"],
+        "arrivee_debut": l["arrivee_debut"],
+    } for l in lignes]
 
     budget = carto.Budget()
-    resultat = plan.planifier(
-        depart_adresse=depart,
-        heure_depart=t["heure_depart"],
-        courses=courses,
-        stationnement_defaut=(t["minutes_stationnement"]
-                              if t["minutes_stationnement"] is not None
-                              else STATIONNEMENT_DEFAUT),
-        pause_minutes=t["pause_minutes"] or 0,
-        pause_apres=t["pause_apres"],
-        retour_depart=bool(t["retour_depart"]),
-        duree=lambda a, b: carto.duree_trajet(db, a, b, budget),
-    )
-    return depart, lignes, resultat
+    duree = lambda a, b: carto.duree_trajet(db, a, b, budget)
+
+    # Deux moteurs, un par situation. Quand le solveur a tourne, il a pu
+    # grouper des patients (plusieurs prises avant la premiere depose) : on
+    # remet alors ses heures dans l'ordre du temps, sans rien recalculer.
+    # Attribution a la main : pas d'heures calculees, on deroule en cascade.
+    calcule = all(l["prise_calc"] is not None for l in lignes) and bool(lignes)
+    if calcule:
+        for c, l in zip(courses, lignes):
+            c["prise_calc"] = l["prise_calc"]
+            c["depose_calc"] = l["depose_calc"]
+            if c["stationnement"] is None:
+                c["stationnement"] = stationnement
+        res = plan.derouler_calcule(
+            depart_adresse=depart,
+            heure_depart=(d["heure_debut"] if d is not None else None),
+            courses=courses,
+            pause={"debut": d["pause_debut"], "minutes": d["pause_minutes"] or 0}
+                  if d is not None else None,
+            duree=duree)
+    else:
+        res = plan.planifier(
+            depart_adresse=depart,
+            heure_depart=(d["heure_debut"] if d is not None else None),
+            courses=courses, stationnement_defaut=stationnement,
+            pause_minutes=(d["pause_minutes"] or 0) if d is not None else 0,
+            pause_apres=(len(courses) // 2) if (d is not None
+                         and (d["pause_minutes"] or 0) and courses) else None,
+            retour_depart=True, duree=duree)
+    return lignes, res, depart
+
+
+@app.route("/journee", methods=["GET", "POST"])
+@admin_required
+def journee():
+    """Preparer une journee : qui est disponible, quelles courses a placer."""
+    db = get_db()
+    if request.method == "POST":
+        date_iso = _date_param()
+        action = request.form.get("action")
+
+        if action == "dispos":
+            choisis = {int(x) for x in request.form.getlist("dispo")}
+            for sal in db.salaries():
+                sid = sal["id"]
+                if sid in choisis:
+                    db.poser_dispo(
+                        date_iso, sid,
+                        heure_debut=_mn(request.form.get(f"debut_{sid}")),
+                        heure_fin=_mn(request.form.get(f"fin_{sid}")),
+                        places=_ent(request.form.get(f"places_{sid}")) or 1,
+                        adresse_depart=request.form.get(f"adresse_{sid}", "").strip(),
+                        pause_minutes=_ent(request.form.get(f"pause_{sid}")) or 0,
+                        minutes_stationnement=_ent(request.form.get(f"sta_{sid}")))
+                elif db.dispo(date_iso, sid) is not None:
+                    db.retirer_dispo(date_iso, sid)
+            flash("Disponibilités enregistrées.", "ok")
+
+        elif action == "course_ajouter":
+            db.ajouter_course(date_iso, _ent(request.form.get("client_id")))
+
+        elif action == "course_modifier":
+            db.modifier_course(
+                int(request.form["cid"]),
+                client_id=_ent(request.form.get("client_id")),
+                prise_adresse=request.form.get("prise_adresse", "").strip(),
+                depose_adresse=request.form.get("depose_adresse", "").strip(),
+                prise_au_plus_tot=_mn(request.form.get("prise_au_plus_tot")),
+                arrivee_debut=_mn(request.form.get("arrivee_debut")),
+                arrivee_fin=_mn(request.form.get("arrivee_fin")),
+                minutes_installation=_ent(request.form.get("minutes_installation")),
+                minutes_stationnement=_ent(request.form.get("minutes_stationnement")),
+                notes=request.form.get("notes", "").strip())
+
+        elif action == "course_supprimer":
+            db.supprimer_course(int(request.form["cid"]))
+
+        elif action == "attribuer":
+            sid = _ent(request.form.get("sid"))
+            db.attribuer(int(request.form["cid"]), sid)
+
+        elif action == "vider":
+            db.vider_attributions(date_iso)
+            flash("Attributions effacées : toutes les courses sont à placer.", "ok")
+
+        return redirect(url_for("journee", date=date_iso))
+
+    date_iso = _date_param()
+    sals = db.salaries()
+    noms = {s["id"]: nom_complet(s) for s in sals}
+    dispos = {d["salarie_id"]: d for d in db.dispos(date_iso)}
+
+    lignes = [_ligne_course(db, c) for c in db.courses(date_iso)]
+    a_placer = [l for l in lignes if l["salarie_id"] is None]
+    placees = {}
+    for l in lignes:
+        if l["salarie_id"] is not None:
+            placees.setdefault(l["salarie_id"], []).append(l)
+
+    d = datetime.date.fromisoformat(date_iso)
+    return render_template(
+        "journee.html", date_iso=date_iso, sals=sals, noms=noms,
+        dispos=dispos, a_placer=a_placer, placees=placees, lignes=lignes,
+        clients=db.clients(),
+        noms_clients={c["id"]: nom_client(c) for c in db.clients(actifs_seuls=False)},
+        cibles=[{"id": sid, "nom_complet": noms[sid]} for sid in dispos],
+        adresses={s["id"]: (s["adresse"] or "") for s in sals},
+        stationnement_defaut=STATIONNEMENT_DEFAUT,
+        optimisation=db.optimisation(date_iso),
+        carto_actif=carto.actif(),
+        jour=f"{JOURS_NOMS[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
+        veille=(d - datetime.timedelta(days=1)).isoformat(),
+        lendemain=(d + datetime.timedelta(days=1)).isoformat())
+
+
+@app.route("/journee/optimiser", methods=["POST"])
+@admin_required
+def journee_optimiser():
+    """Attribue les courses aux salaries disponibles.
+
+    Appelle le solveur, et lui seul decide de la repartition et de l'ordre.
+    Point d'entree a quota serre : jamais declenche automatiquement.
+    """
+    db = get_db()
+    date_iso = _date_param()
+    retour = redirect(url_for("journee", date=date_iso))
+
+    dispos = db.dispos(date_iso)
+    courses = db.courses(date_iso)
+    if not dispos:
+        flash("Aucun salarié disponible ce jour-là.", "error")
+        return retour
+    if not courses:
+        flash("Aucune course à placer.", "error")
+        return retour
+
+    lignes = [_ligne_course(db, c) for c in courses]
+    adresses = [_adresse_depart(db, date_iso, d["salarie_id"]) for d in dispos]
+    adresses += [l["prise_effective"] for l in lignes]
+    adresses += [l["depose_adresse"] for l in lignes]
+    coords, manquantes = _coords_du_jour(db, adresses)
+
+    salaries = [{
+        "id": d["salarie_id"],
+        "adresse": _adresse_depart(db, date_iso, d["salarie_id"]),
+        "debut": d["heure_debut"] if d["heure_debut"] is not None else 8 * 60,
+        "fin": d["heure_fin"] if d["heure_fin"] is not None else 18 * 60,
+        "places": d["places"], "pause": d["pause_minutes"] or 0,
+    } for d in dispos]
+
+    demande = []
+    for l in lignes:
+        sta = (l["minutes_stationnement"] if l["minutes_stationnement"] is not None
+               else STATIONNEMENT_DEFAUT)
+        service = sta + l["installation_retenue"]
+        demande.append({
+            "id": l["id"], "prise": l["prise_effective"],
+            "depose": l["depose_adresse"],
+            "service_prise": service, "service_depose": service,
+            "prise_au_plus_tot": l["prise_au_plus_tot"],
+            "arrivee_debut": l["arrivee_debut"], "arrivee_fin": l["arrivee_fin"],
+        })
+
+    charge, ecartes = optim.construire(salaries, demande, coords)
+    if not charge["vehicles"] or not charge["shipments"]:
+        flash("Rien d'exploitable : vérifiez les adresses.", "error")
+        db.noter_optimisation(date_iso, -1, len(demande),
+                              "aucune adresse exploitable", None)
+        return retour
+
+    reponse, quota, motif = carto.optimiser(charge)
+    if reponse is None:
+        db.noter_optimisation(date_iso, -1, 0, motif, quota)
+        flash(f"Optimisation impossible : {motif}. Les courses restent à "
+              f"placer, vous pouvez les attribuer à la main.", "error")
+        return retour
+
+    lu = optim.relire(reponse)
+    if lu["motif"]:
+        db.noter_optimisation(date_iso, reponse.get("code", -1), 0, lu["motif"], quota)
+        flash(f"Optimisation impossible : {lu['motif']}.", "error")
+        return retour
+
+    db.vider_attributions(date_iso)
+    for cid, a in lu["affectations"].items():
+        db.attribuer(cid, a["salarie"], a["position"], a["prise"], a["depose"])
+
+    # Le solveur place aussi le repos : on retient quand, et apres quoi.
+    for route in reponse.get("routes") or []:
+        rang, apres, debut = 0, None, None
+        for etape in route.get("steps") or []:
+            if etape.get("type") == "pickup":
+                rang += 1
+            elif etape.get("type") == "break":
+                apres = rang - 1 if rang else None
+                debut = int(round((etape.get("arrival", 0)
+                                   + etape.get("waiting_time", 0)) / 60.0))
+        db.set_pause(date_iso, route.get("vehicle"), apres, debut)
+
+    non_places = len(lu["non_affectees"]) + sum(1 for e in ecartes
+                                                if e["genre"] == "course")
+    db.noter_optimisation(date_iso, 0, non_places, "", quota)
+
+    msg = (f"{len(lu['affectations'])} course(s) attribuée(s) sur "
+           f"{lu['resume'].get('vehicules', 0)} salarié(s).")
+    if non_places:
+        msg += f" {non_places} n'ont pas pu être placées."
+    flash(msg, "ok" if not non_places else "error")
+    for e in ecartes:
+        flash(f"Écarté du calcul — {e['motif']}", "error")
+    for a, motif in manquantes:
+        flash(f"Adresse non localisée : {a} ({motif})", "error")
+    return retour
+
+
+@app.route("/journee/<date_iso>/<int:sid>", methods=["GET", "POST"])
+@admin_required
+def tournee_fiche(date_iso, sid):
+    """Resultat d'un salarie, avec reprise en main."""
+    db = get_db()
+    try:
+        datetime.date.fromisoformat(date_iso)
+    except ValueError:
+        abort(404)
+    sal = db.salarie(sid)
+    if sal is None:
+        abort(404)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "monter":
+            db.deplacer_course(int(request.form["cid"]), -1)
+        elif action == "descendre":
+            db.deplacer_course(int(request.form["cid"]), +1)
+        elif action == "detacher":
+            db.attribuer(int(request.form["cid"]), None)
+        elif action == "transferer":
+            db.attribuer(int(request.form["cid"]), _ent(request.form.get("vers")))
+        elif action == "trajet":
+            minutes = _ent(request.form.get("minutes"))
+            o = request.form.get("origine", "")
+            d = request.form.get("destination", "")
+            if minutes is not None and o and d:
+                db.trajet_ecrire(o, d, minutes, source="manuel")
+                flash("Durée du trajet enregistrée.", "ok")
+        return redirect(url_for("tournee_fiche", date_iso=date_iso, sid=sid))
+
+    lignes, res, depart = _deroule(db, date_iso, sid)
+    autres = [s for s in db.salaries()
+              if s["id"] != sid and db.dispo(date_iso, s["id"]) is not None]
+    return render_template(
+        "tournee.html", date_iso=date_iso, sid=sid,
+        salarie=nom_complet(sal), depart=depart,
+        date_fr=datetime.date.fromisoformat(date_iso).strftime("%d/%m/%Y"),
+        dispo=db.dispo(date_iso, sid), lignes=lignes, res=res,
+        autres=autres, noms={s["id"]: nom_complet(s) for s in db.salaries()})
 
 
 @app.route("/clients", methods=["GET", "POST"])
@@ -1019,113 +1297,31 @@ def clients():
                            defauts=INSTALLATION_DEFAUT)
 
 
-@app.route("/tournees", methods=["GET", "POST"])
-@admin_required
-def tournees():
+@app.route("/mon-compte", methods=["GET", "POST"])
+@login_required
+def mon_compte():
+    """Reglages que l'utilisateur tient lui-meme.
+
+    L'adresse de depart appartient a la fiche salarie : c'est elle que lisent
+    les tournees. Un administrateur peut la corriger depuis l'onglet Salaries,
+    et une tournee peut la remplacer pour la journee.
+    """
     db = get_db()
-    if request.method == "POST":
-        date_iso = _date_param()
-        action = request.form.get("action")
-        if action == "creer":
-            sid = int(request.form.get("sid") or 0)
-            if not sid:
-                flash("Choisissez un salarié.", "error")
-                return redirect(url_for("tournees", date=date_iso))
-            deja = db.tournee_du_jour(sid, date_iso)
-            if deja is not None:
-                return redirect(url_for("tournee_fiche", tid=deja["id"]))
-            tid = db.creer_tournee(sid, date_iso, _mn(request.form.get("heure_depart")))
-            return redirect(url_for("tournee_fiche", tid=tid))
-        if action == "supprimer":
-            db.supprimer_tournee(int(request.form["tid"]))
-            flash("Tournée supprimée.", "ok")
-        return redirect(url_for("tournees", date=date_iso))
-
-    date_iso = _date_param()
-    sals = db.salaries()
-    noms = {s["id"]: nom_complet(s) for s in sals}
-    liste = []
-    for t in db.tournees_de_la_date(date_iso):
-        courses = db.courses(t["id"])
-        liste.append({
-            "id": t["id"], "salarie": noms.get(t["salarie_id"], "—"),
-            "depart": fmt_hm(t["heure_depart"]) if t["heure_depart"] is not None else "—",
-            "nb": len(courses),
-        })
-    d = datetime.date.fromisoformat(date_iso)
-    return render_template(
-        "tournees.html", date_iso=date_iso, liste=liste, sals=sals, noms=noms,
-        jour=f"{JOURS_NOMS[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
-        veille=(d - datetime.timedelta(days=1)).isoformat(),
-        lendemain=(d + datetime.timedelta(days=1)).isoformat(),
-        carto_actif=carto.actif())
-
-
-@app.route("/tournee/<int:tid>", methods=["GET", "POST"])
-@admin_required
-def tournee_fiche(tid):
-    db = get_db()
-    t = db.tournee(tid)
-    if t is None:
-        abort(404)
+    sid = session.get("salarie_id")
+    sal = db.salarie(sid) if sid else None
 
     if request.method == "POST":
-        action = request.form.get("action")
-        if action == "entete":
-            pause_apres = request.form.get("pause_apres", "")
-            db.modifier_tournee(
-                tid,
-                heure_depart=_mn(request.form.get("heure_depart")),
-                depart_adresse=request.form.get("depart_adresse", "").strip(),
-                minutes_stationnement=_ent(request.form.get("minutes_stationnement")),
-                pause_minutes=_ent(request.form.get("pause_minutes")) or 0,
-                pause_apres=(int(pause_apres) if pause_apres.isdigit() else None),
-                retour_depart=bool(request.form.get("retour_depart")),
-                notes=request.form.get("notes", "").strip())
-            flash("Tournée mise à jour.", "ok")
-        elif action == "course_ajouter":
-            db.ajouter_course(tid, _ent(request.form.get("client_id")))
-        elif action == "course_modifier":
-            db.modifier_course(
-                int(request.form["cid"]),
-                client_id=_ent(request.form.get("client_id")),
-                prise_adresse=request.form.get("prise_adresse", "").strip(),
-                depose_adresse=request.form.get("depose_adresse", "").strip(),
-                heure_rdv=_mn(request.form.get("heure_rdv")),
-                minutes_installation=_ent(request.form.get("minutes_installation")),
-                minutes_stationnement=_ent(request.form.get("minutes_stationnement")),
-                notes=request.form.get("notes", "").strip())
-        elif action == "course_supprimer":
-            db.supprimer_course(int(request.form["cid"]))
-        elif action == "course_monter":
-            db.deplacer_course(int(request.form["cid"]), -1)
-        elif action == "course_descendre":
-            db.deplacer_course(int(request.form["cid"]), +1)
-        elif action == "trajet":
-            minutes = _ent(request.form.get("minutes"))
-            origine = request.form.get("origine", "")
-            destination = request.form.get("destination", "")
-            if minutes is not None and origine and destination:
-                # Saisie a la main : elle prime sur le service de cartographie
-                # et resservira a toutes les tournees qui font ce trajet.
-                db.trajet_ecrire(origine, destination, minutes, source="manuel")
-                flash("Durée du trajet enregistrée.", "ok")
-        return redirect(url_for("tournee_fiche", tid=tid))
+        if sal is None:
+            flash("Votre compte n'est rattaché à aucun salarié.", "error")
+        else:
+            db.set_salarie_adresse(sid, request.form.get("adresse", "").strip())
+            flash("Adresse de départ enregistrée.", "ok")
+        return redirect(url_for("mon_compte"))
 
-    sal = db.salarie(t["salarie_id"])
-    depart, lignes, res = _preparer(db, t)
     return render_template(
-        "tournee.html", t=t, tid=tid,
-        salarie=nom_complet(sal) if sal else "—",
-        date_fr=datetime.date.fromisoformat(t["date"]).strftime("%d/%m/%Y"),
-        depart_effectif=depart,
-        adresse_salarie=(sal["adresse"] or "") if sal else "",
-        heure_depart=fmt_hm(t["heure_depart"]) if t["heure_depart"] is not None else "",
-        lignes=lignes, res=res, clients=db.clients(),
-        noms_clients={c["id"]: nom_client(c) for c in db.clients(actifs_seuls=False)},
-        stationnement=(t["minutes_stationnement"] if t["minutes_stationnement"]
-                       is not None else STATIONNEMENT_DEFAUT),
-        carto_actif=carto.actif())
+        "mon_compte.html", sal=sal,
+        nom=nom_complet(sal) if sal is not None else "",
+        adresse=(sal["adresse"] or "") if sal is not None else "")
 
 
 @app.route("/ma-tournee")
@@ -1140,14 +1336,14 @@ def ma_tournee():
         return render_template("ma_tournee.html", sal=None, date_iso=date_iso)
 
     sal = db.salarie(sid)
-    t = db.tournee_du_jour(sid, date_iso)
     res = depart = None
-    if t is not None:
-        depart, _lignes, res = _preparer(db, t)
+    courses = db.courses(date_iso, sid)
+    if courses:
+        _lignes, res, depart = _deroule(db, date_iso, sid)
     d = datetime.date.fromisoformat(date_iso)
     return render_template(
-        "ma_tournee.html", sal=sal, t=t, res=res, depart=depart,
-        date_iso=date_iso,
+        "ma_tournee.html", sal=sal, res=res, depart=depart, date_iso=date_iso,
+        nb=len(courses),
         jour=f"{JOURS_NOMS[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
         veille=(d - datetime.timedelta(days=1)).isoformat(),
         lendemain=(d + datetime.timedelta(days=1)).isoformat())

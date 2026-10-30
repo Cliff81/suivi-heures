@@ -1,0 +1,93 @@
+{% from "_icons.html" import ico %}
+{#
+  Fiche d'une course : la même qu'elle soit encore à placer ou déjà attribuée.
+  `cibles` = salariés disponibles vers qui on peut l'envoyer à la main.
+#}
+{% macro course(l, clients, noms_clients, cibles, stationnement_defaut, action_url) -%}
+<div class="course">
+  <div class="course-tete">
+    {% if l.position is not none %}<span class="rang">{{ l.position + 1 }}</span>{% endif %}
+    <span class="qui">{{ l.libelle }}</span>
+    {% if l.arrivee_fin is not none %}
+      <span class="hint">arrivée avant {{ fmt_hm(l.arrivee_fin) }}</span>
+    {% endif %}
+    {% if l.prise_calc is not none %}
+      <span class="hint">prise {{ fmt_hm(l.prise_calc) }} · dépose {{ fmt_hm(l.depose_calc) }}</span>
+    {% endif %}
+    <div class="outils">
+      {% if cibles %}
+      <form method="post" action="{{ action_url }}">
+        <input type="hidden" name="action" value="attribuer">
+        <input type="hidden" name="cid" value="{{ l.id }}">
+        <select name="sid" aria-label="Attribuer cette course" style="width:170px">
+          <option value="">— à placer —</option>
+          {% for s in cibles %}
+            <option value="{{ s['id'] }}" {{ 'selected' if s['id']==l.salarie_id }}>{{ s['nom_complet'] }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-sm" type="submit">{{ ico('check','ico-sm') }}Placer</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ action_url }}" onsubmit="return confirm('Supprimer cette course ?')">
+        <input type="hidden" name="action" value="course_supprimer">
+        <input type="hidden" name="cid" value="{{ l.id }}">
+        <button class="btn btn-sm btn-icon btn-danger" type="submit"
+                title="Supprimer" aria-label="Supprimer la course">{{ ico('corbeille','ico-sm') }}</button>
+      </form>
+    </div>
+  </div>
+
+  <form method="post" action="{{ action_url }}">
+    <div class="course-corps">
+      <input type="hidden" name="action" value="course_modifier">
+      <input type="hidden" name="cid" value="{{ l.id }}">
+      <div class="course-grille">
+        <div class="field"><label>Client</label>
+          <select name="client_id">
+            <option value="">— adresse libre —</option>
+            {% for c in clients %}
+              <option value="{{ c['id'] }}" {{ 'selected' if c['id']==l.client_id }}>{{ noms_clients[c['id']] }}</option>
+            {% endfor %}
+          </select></div>
+        <div class="field"><label>Prise au plus tôt</label>
+          <input type="time" name="prise_au_plus_tot"
+                 value="{{ fmt_hm(l.prise_au_plus_tot) if l.prise_au_plus_tot is not none }}">
+          <span class="hint">facultatif</span></div>
+        <div class="field"><label>Arrivée entre</label>
+          <input type="time" name="arrivee_debut"
+                 value="{{ fmt_hm(l.arrivee_debut) if l.arrivee_debut is not none }}"></div>
+        <div class="field"><label>… et</label>
+          <input type="time" name="arrivee_fin"
+                 value="{{ fmt_hm(l.arrivee_fin) if l.arrivee_fin is not none }}">
+          <span class="hint">heure du rendez-vous</span></div>
+        <div class="field"><label>Installation (min)</label>
+          <input type="number" min="0" name="minutes_installation"
+                 value="{{ l.minutes_installation if l.minutes_installation is not none }}"
+                 placeholder="{{ l.installation_retenue }}"></div>
+        <div class="field"><label>Stationnement (min)</label>
+          <input type="number" min="0" name="minutes_stationnement"
+                 value="{{ l.minutes_stationnement if l.minutes_stationnement is not none }}"
+                 placeholder="{{ stationnement_defaut }}"></div>
+      </div>
+      <div class="duo" style="margin-top:12px">
+        <div class="field"><label>Prise en charge</label>
+          <input type="text" name="prise_adresse" value="{{ l.prise_adresse }}"
+                 placeholder="{{ l.prise_effective or 'adresse de prise en charge' }}">
+          <span class="hint">
+            {%- if l.domicile %}Vide : domicile du client ({{ l.prise_effective }}).
+            {%- else %}Laisser vide pour partir du domicile du client.{% endif %}</span></div>
+        <div class="field"><label>Dépose</label>
+          <input type="text" name="depose_adresse" value="{{ l.depose_adresse }}"
+                 placeholder="hôpital, cabinet, domicile…"></div>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Notes</label>
+        <input type="text" name="notes" value="{{ l.notes }}">
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-sm" type="submit">{{ ico('enregistrer','ico-sm') }}Enregistrer la course</button>
+      </div>
+    </div>
+  </form>
+</div>
+{%- endmacro %}

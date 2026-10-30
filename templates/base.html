@@ -24,10 +24,11 @@
       </span>
     </a>
     <div class="app-user">
-      <span class="who">
+      <a class="who" href="{{ url_for('mon_compte') }}"
+         title="Mon compte">
         {{ ico('personne', 'ico-sm') }}<span class="nom">{{ app_user }}</span>
         {% if not app_is_admin %}<span class="badge badge-user">Salarié</span>{% endif %}
-      </span>
+      </a>
       <a class="btn btn-sm btn-ghost" href="{{ url_for('logout') }}">
         {{ ico('sortie', 'ico-sm') }}Déconnexion
       </a>
@@ -43,13 +44,14 @@
         <li><a href="{{ url_for('recap_global') }}" class="{{ 'actif' if ep=='recap_global' }}">{{ ico('graphe','ico-sm') }}Récap global</a></li>
         <li><a href="{{ url_for('releve') }}" class="{{ 'actif' if ep in ('releve','releve_excel') }}">{{ ico('document','ico-sm') }}Relevé</a></li>
         <li><a href="{{ url_for('conversion') }}" class="{{ 'actif' if ep=='conversion' }}">{{ ico('calculatrice','ico-sm') }}Conversion</a></li>
-        <li><a href="{{ url_for('tournees') }}" class="{{ 'actif' if ep in ('tournees','tournee_fiche') }}">{{ ico('volant','ico-sm') }}Tournées</a></li>
+        <li><a href="{{ url_for('journee') }}" class="{{ 'actif' if ep in ('journee','tournee_fiche','journee_optimiser') }}">{{ ico('volant','ico-sm') }}Journée</a></li>
         <li><a href="{{ url_for('clients') }}" class="{{ 'actif' if ep=='clients' }}">{{ ico('carnet','ico-sm') }}Clients</a></li>
         <li><a href="{{ url_for('salaries') }}" class="{{ 'actif' if ep=='salaries' }}">{{ ico('equipe','ico-sm') }}Salariés</a></li>
         <li><a href="{{ url_for('comptes') }}" class="{{ 'actif' if ep=='comptes' }}">{{ ico('cadenas','ico-sm') }}Comptes</a></li>
       {% else %}
         <li><a href="{{ url_for('espace') }}" class="{{ 'actif' if ep=='espace' }}">{{ ico('horloge','ico-sm') }}Ma journée</a></li>
         <li><a href="{{ url_for('ma_tournee') }}" class="{{ 'actif' if ep=='ma_tournee' }}">{{ ico('volant','ico-sm') }}Ma tournée</a></li>
+        <li><a href="{{ url_for('mon_compte') }}" class="{{ 'actif' if ep=='mon_compte' }}">{{ ico('personne','ico-sm') }}Mon compte</a></li>
       {% endif %}
     </ul>
   </nav>

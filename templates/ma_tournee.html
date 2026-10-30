@@ -31,7 +31,7 @@
       <p class="lede" style="margin:0">Votre compte n'est rattaché à aucun salarié.
          Contactez un administrateur.</p>
     </div></div>
-  {% elif not t or not res.etapes or res.etapes|length <= 1 %}
+  {% elif not nb %}
     <p class="vide">Aucune tournée prévue ce jour-là.</p>
   {% else %}
 
@@ -48,12 +48,6 @@
       {{ totaux(res) }}
     </div>
 
-    {% if t['notes'] %}
-    <div class="card">
-      <div class="card-head"><span class="t">{{ ico('info') }}Consignes</span></div>
-      <div class="card-body"><p style="margin:0">{{ t['notes'] }}</p></div>
-    </div>
-    {% endif %}
 
     <p class="hint">Horaires prévisionnels : ils ne remplacent pas la saisie de
        vos heures réelles dans « Ma journée ».</p>

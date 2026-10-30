@@ -17,6 +17,7 @@ Par defaut OpenRouteService, dont les serveurs sont en Allemagne (UE).
 
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -29,6 +30,7 @@ PAYS = os.environ.get("SUIVI_CARTO_PAYS", "FRA").strip()
 PROFIL = os.environ.get("SUIVI_CARTO_PROFIL", "driving-car").strip()
 
 DELAI = 8               # secondes avant d'abandonner un appel
+DELAI_OPTIM = 25        # l'optimisation est plus longue qu'un itineraire
 BUDGET_APPELS = 40      # appels reseau max pour une planification
 
 
@@ -151,3 +153,54 @@ def duree_trajet(db, origine, destination, budget=None):
 
     db.trajet_ecrire(o, d, minutes, km, source="carto")
     return {"minutes": minutes, "km": km, "source": "carto", "motif": None}
+
+
+def optimiser(demande):
+    """Soumet une demande d'optimisation (VROOM) au service.
+
+    Renvoie (reponse, quota, motif) : la reponse decodee, le nombre
+    d'optimisations restantes lu dans l'en-tete, et le motif d'echec le cas
+    echeant. Ne leve jamais : un ecran de planification doit s'afficher meme
+    quand le service est muet.
+
+    Ce point d'entree a son propre quota, bien plus serre que les itineraires
+    (50 par jour au moment de l'ecriture) : il ne doit etre appele que sur
+    demande explicite, jamais au chargement d'une page.
+    """
+    if not actif():
+        return None, None, "cartographie non configurée"
+
+    corps = json.dumps(demande).encode("utf-8")
+    req = urllib.request.Request(f"{BASE}/optimization", data=corps, headers={
+        "Authorization": CLE,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "suivi-heures/1.0",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=DELAI_OPTIM) as rep:
+            quota = rep.headers.get("x-ratelimit-remaining")
+            data = json.loads(rep.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        quota = e.headers.get("x-ratelimit-remaining") if e.headers else None
+        if e.code == 429:
+            return None, _entier(quota), ("quota d'optimisations épuisé pour "
+                                          "aujourd'hui")
+        detail = ""
+        try:
+            detail = (json.loads(e.read().decode("utf-8"))
+                      .get("error", {}).get("message", ""))
+        except Exception:
+            pass
+        return None, _entier(quota), (f"le service a refusé la demande "
+                                      f"({e.code}){' : ' + detail if detail else ''}")
+    except Exception:
+        return None, None, "le service d'optimisation n'a pas répondu"
+    return data, _entier(quota), None
+
+
+def _entier(v):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ico %}
+{% from "_course.html" import course with context %}
+{% block title %}Journée du {{ date_iso }} — Suivi des heures{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div class="titres">
+    <h1>Préparer la journée</h1>
+    <p class="lede">On déclare qui est disponible, on encaisse les courses sans
+       se soucier de qui les prendra, puis on attribue en une fois.</p>
+  </div>
+</div>
+
+<form class="toolbar" method="get" action="{{ url_for('journee') }}">
+  <a class="btn btn-sm btn-icon" href="{{ url_for('journee', date=veille) }}"
+     title="Jour précédent" aria-label="Jour précédent">{{ ico('fleche-g','ico-sm') }}</a>
+  <div class="field">
+    <label for="f-date">Jour</label>
+    <input id="f-date" type="date" name="date" value="{{ date_iso }}"
+           onchange="this.form.submit()">
+  </div>
+  <a class="btn btn-sm btn-icon" href="{{ url_for('journee', date=lendemain) }}"
+     title="Jour suivant" aria-label="Jour suivant">{{ ico('fleche-d','ico-sm') }}</a>
+  <span class="hint" style="align-self:center">{{ jour }}</span>
+</form>
+
+{% if not carto_actif %}
+<div class="flash" role="note"
+     style="background:var(--warn-soft);border-color:#E7CE9B;color:var(--warn)">
+  {{ ico('alerte') }}
+  <span>Sans clé de cartographie (<b>SUIVI_CARTO_CLE</b>), l'attribution
+    automatique est indisponible : placez les courses à la main et saisissez
+    les durées de trajet dans le déroulé de chaque salarié.</span>
+</div>
+{% endif %}
+
+<!-- ============ 1. qui est disponible ============ -->
+<div class="card">
+  <div class="card-head">
+    <span class="t">{{ ico('equipe') }}Salariés disponibles</span>
+    <span class="sub spacer">{{ dispos|length }} sur {{ sals|length }}</span>
+  </div>
+  <form method="post">
+    <input type="hidden" name="action" value="dispos">
+    <input type="hidden" name="date" value="{{ date_iso }}">
+    <div class="table-scroll">
+      <table class="tbl">
+        <thead><tr>
+          <th class="txt">Disponible</th><th>Début</th><th>Fin</th>
+          <th>Places</th><th>Repos (min)</th><th>Station. (min)</th>
+          <th class="txt">Départ (si différent du domicile)</th>
+        </tr></thead>
+        <tbody>
+        {% for s in sals %}
+          {% set d = dispos.get(s['id']) %}
+          <tr>
+            <td class="jour">
+              <label class="check"><input type="checkbox" name="dispo"
+                     value="{{ s['id'] }}" {{ 'checked' if d }}>
+                {{ noms[s['id']] }}</label></td>
+            <td><input type="time" name="debut_{{ s['id'] }}"
+                 value="{{ fmt_hm(d['heure_debut']) if d and d['heure_debut'] is not none else '08:00' }}"></td>
+            <td><input type="time" name="fin_{{ s['id'] }}"
+                 value="{{ fmt_hm(d['heure_fin']) if d and d['heure_fin'] is not none else '18:00' }}"></td>
+            <td><input type="number" min="1" max="8" name="places_{{ s['id'] }}"
+                 value="{{ d['places'] if d else 1 }}" style="width:62px"></td>
+            <td><input type="number" min="0" name="pause_{{ s['id'] }}"
+                 value="{{ d['pause_minutes'] if d else 0 }}" style="width:70px"></td>
+            <td><input type="number" min="0" name="sta_{{ s['id'] }}"
+                 value="{{ d['minutes_stationnement'] if d and d['minutes_stationnement'] is not none else stationnement_defaut }}"
+                 style="width:70px"></td>
+            <td class="txt"><input type="text" name="adresse_{{ s['id'] }}"
+                 value="{{ d['adresse_depart'] if d else '' }}"
+                 placeholder="{{ adresses[s['id']] or 'aucune adresse sur la fiche' }}"
+                 style="width:100%;min-width:220px"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-foot">
+      <button class="btn" type="submit">{{ ico('enregistrer','ico-sm') }}Enregistrer les disponibilités</button>
+      <span class="hint" style="margin-left:10px">Décocher un salarié renvoie
+        ses courses au vivier.</span>
+    </div>
+  </form>
+</div>
+
+<!-- ============ 2. l'attribution ============ -->
+<div class="card">
+  <div class="card-head">
+    <span class="t">{{ ico('volant') }}Attribution</span>
+    {% if optimisation %}
+      <span class="sub">dernier calcul {{ optimisation['maj'] }} UTC
+        {%- if optimisation['quota_restant'] is not none %} ·
+          {{ optimisation['quota_restant'] }} optimisation(s) restantes aujourd'hui{% endif %}</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <p class="hint" style="margin:0 0 12px">Le calcul répartit les courses entre
+      les salariés disponibles et les ordonne, en tenant les fenêtres d'arrivée
+      et en cherchant le moins de route possible. Le résultat est une
+      proposition : tout reste modifiable ensuite.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <form method="post" action="{{ url_for('journee_optimiser') }}">
+        <input type="hidden" name="date" value="{{ date_iso }}">
+        <button class="btn btn-primary" type="submit"
+                {{ 'disabled' if not carto_actif or not dispos or not lignes }}>
+          {{ ico('etincelles') }}Optimiser et attribuer</button>
+      </form>
+      {% if placees %}
+      <form method="post" onsubmit="return confirm('Renvoyer toutes les courses au vivier ?')">
+        <input type="hidden" name="action" value="vider">
+        <input type="hidden" name="date" value="{{ date_iso }}">
+        <button class="btn" type="submit">{{ ico('croix','ico-sm') }}Tout délier</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if placees %}
+  <div class="stats">
+    {% for sid, cs in placees.items() %}
+      <div class="stat">
+        <span class="lib">{{ noms[sid] }}</span>
+        <span class="val">{{ cs|length }}</span>
+        <span class="cent">course(s)</span><br>
+        <a class="hint" href="{{ url_for('tournee_fiche', date_iso=date_iso, sid=sid) }}">
+          voir le déroulé →</a>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- ============ 3. les courses ============ -->
+<h2 class="page-head" style="margin:22px 0 12px;font-size:17px">
+  Courses à placer <span class="muted">({{ a_placer|length }})</span></h2>
+
+{% if not a_placer %}
+  <p class="vide">{{ "Aucune course ce jour-là." if not lignes
+     else "Toutes les courses sont attribuées." }}</p>
+{% endif %}
+
+{% for l in a_placer %}
+  {{ course(l, clients, noms_clients, cibles, stationnement_defaut, url_for('journee', date=date_iso)) }}
+{% endfor %}
+
+<div class="card">
+  <form method="post">
+    <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <input type="hidden" name="action" value="course_ajouter">
+      <input type="hidden" name="date" value="{{ date_iso }}">
+      <div class="field" style="flex:1 1 220px">
+        <label for="a-client">Ajouter une course</label>
+        <select id="a-client" name="client_id">
+          <option value="">— adresse libre —</option>
+          {% for c in clients %}
+            <option value="{{ c['id'] }}">{{ noms_clients[c['id']] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">{{ ico('plus') }}Ajouter</button>
+    </div>
+  </form>
+</div>
+
+{% if placees %}
+<h2 class="page-head" style="margin:22px 0 12px;font-size:17px">Courses attribuées</h2>
+{% for sid, cs in placees.items() %}
+  <div class="card-head" style="border-radius:var(--r-2) var(--r-2) 0 0;border:1px solid var(--line);border-bottom:0">
+    <span class="t">{{ ico('personne') }}{{ noms[sid] }}</span>
+    <span class="sub spacer">
+      <a href="{{ url_for('tournee_fiche', date_iso=date_iso, sid=sid) }}">déroulé complet →</a></span>
+  </div>
+  {% for l in cs %}
+    {{ course(l, clients, noms_clients, cibles, stationnement_defaut, url_for('journee', date=date_iso)) }}
+  {% endfor %}
+{% endfor %}
+{% endif %}
+{% endblock %}
