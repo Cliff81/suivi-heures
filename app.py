@@ -28,7 +28,7 @@ import optim
 import tournee as plan
 from core import (DB, DB_PATH, MOIS_NOMS, JOURS_NOMS, SEUIL_ACCORD,
                   MAX_JOUR, MAX_SEMAINE, TYPES_TRANSPORT, INSTALLATION_DEFAUT,
-                  STATIONNEMENT_DEFAUT, nom_complet, nom_client,
+                  nom_complet, nom_client,
                   fmt_hm, fmt_hm_signe,
                   fmt_centieme, fmt_km, parse_heure, heures_travaillees,
                   totaux_semaine, totaux_mois, semaines_du_mois,
@@ -980,9 +980,7 @@ def _deroule(db, date_iso, sid):
     sal = db.salarie(sid)
     d = db.dispo(date_iso, sid)
     depart = _adresse_depart(db, date_iso, sid, sal)
-    stationnement = (d["minutes_stationnement"] if d is not None
-                     and d["minutes_stationnement"] is not None
-                     else STATIONNEMENT_DEFAUT)
+    stationnement = db.stationnement(date_iso)
     lignes = [_ligne_course(db, c) for c in db.courses(date_iso, sid)]
     courses = [{
         "libelle": l["libelle"], "prise": l["prise_effective"],
@@ -1036,6 +1034,9 @@ def journee():
         action = request.form.get("action")
 
         if action == "dispos":
+            db.poser_journee(date_iso,
+                             _ent(request.form.get("stationnement")),
+                             request.form.get("journee_notes", "").strip())
             choisis = {int(x) for x in request.form.getlist("dispo")}
             for sal in db.salaries():
                 sid = sal["id"]
@@ -1046,8 +1047,7 @@ def journee():
                         heure_fin=_mn(request.form.get(f"fin_{sid}")),
                         places=_ent(request.form.get(f"places_{sid}")) or 1,
                         adresse_depart=request.form.get(f"adresse_{sid}", "").strip(),
-                        pause_minutes=_ent(request.form.get(f"pause_{sid}")) or 0,
-                        minutes_stationnement=_ent(request.form.get(f"sta_{sid}")))
+                        pause_minutes=_ent(request.form.get(f"pause_{sid}")) or 0)
                 elif db.dispo(date_iso, sid) is not None:
                     db.retirer_dispo(date_iso, sid)
             flash("Disponibilités enregistrées.", "ok")
@@ -1101,7 +1101,8 @@ def journee():
         noms_clients={c["id"]: nom_client(c) for c in db.clients(actifs_seuls=False)},
         cibles=[{"id": sid, "nom_complet": noms[sid]} for sid in dispos],
         adresses={s["id"]: (s["adresse"] or "") for s in sals},
-        stationnement_defaut=STATIONNEMENT_DEFAUT,
+        stationnement_defaut=db.stationnement(date_iso),
+        journee=db.journee(date_iso),
         optimisation=db.optimisation(date_iso),
         carto_actif=carto.actif(),
         jour=f"{JOURS_NOMS[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
@@ -1174,10 +1175,11 @@ def _optimiser(db, date_iso):
         "places": d["places"], "pause": d["pause_minutes"] or 0,
     } for d in dispos]
 
+    defaut = db.stationnement(date_iso)
     demande = []
     for l in lignes:
         sta = (l["minutes_stationnement"] if l["minutes_stationnement"] is not None
-               else STATIONNEMENT_DEFAUT)
+               else defaut)
         service = sta + l["installation_retenue"]
         demande.append({
             "id": l["id"], "prise": l["prise_effective"],

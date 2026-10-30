@@ -274,6 +274,19 @@ class DB:
         c.execute("DROP TABLE IF EXISTS tournee_courses")
         c.execute("DROP TABLE IF EXISTS tournees")
 
+        # Le temps de se garer depend du lieu, pas du conducteur : il vaut
+        # pour la journee entiere, et chaque course peut l'ajuster. Le porter
+        # sur le salarie etait une erreur : au moment du calcul, une course
+        # n'est attribuee a personne, sa valeur serait inconnaissable.
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS journees (
+                date TEXT PRIMARY KEY,
+                minutes_stationnement INTEGER,
+                notes TEXT DEFAULT ''
+            )""")
+        scols = {r["name"] for r in c.execute("PRAGMA table_info(journee_salaries)")}
+        if "minutes_stationnement" in scols:
+            c.execute("ALTER TABLE journee_salaries DROP COLUMN minutes_stationnement")
         c.execute("""
             CREATE TABLE IF NOT EXISTS journee_salaries (
                 date TEXT NOT NULL,
@@ -285,7 +298,6 @@ class DB:
                 pause_minutes INTEGER DEFAULT 0,
                 pause_apres INTEGER,
                 pause_debut INTEGER,
-                minutes_stationnement INTEGER,
                 PRIMARY KEY (date, salarie_id)
             )""")
         c.execute("""
@@ -464,6 +476,27 @@ class DB:
                           (adresse, sid))
         self.conn.commit()
 
+    # --- reglages de la journee ---
+    def journee(self, date_iso):
+        return self.conn.execute(
+            "SELECT * FROM journees WHERE date=?", (date_iso,)).fetchone()
+
+    def stationnement(self, date_iso):
+        """Minutes pour se garer a chaque arret, ce jour-la."""
+        j = self.journee(date_iso)
+        if j is not None and j["minutes_stationnement"] is not None:
+            return j["minutes_stationnement"]
+        return STATIONNEMENT_DEFAUT
+
+    def poser_journee(self, date_iso, minutes_stationnement=None, notes=""):
+        self.conn.execute(
+            "INSERT INTO journees (date, minutes_stationnement, notes) "
+            "VALUES (?,?,?) ON CONFLICT(date) DO UPDATE SET "
+            "minutes_stationnement=excluded.minutes_stationnement, "
+            "notes=excluded.notes",
+            (date_iso, minutes_stationnement, notes))
+        self.conn.commit()
+
     # --- disponibilites d'une journee ---
     def dispos(self, date_iso):
         return self.conn.execute(
@@ -478,17 +511,15 @@ class DB:
     def poser_dispo(self, date_iso, sid, **v):
         self.conn.execute("""
             INSERT INTO journee_salaries (date, salarie_id, heure_debut,
-                heure_fin, places, adresse_depart, pause_minutes,
-                minutes_stationnement)
-            VALUES (?,?,?,?,?,?,?,?)
+                heure_fin, places, adresse_depart, pause_minutes)
+            VALUES (?,?,?,?,?,?,?)
             ON CONFLICT(date, salarie_id) DO UPDATE SET
               heure_debut=excluded.heure_debut, heure_fin=excluded.heure_fin,
               places=excluded.places, adresse_depart=excluded.adresse_depart,
-              pause_minutes=excluded.pause_minutes,
-              minutes_stationnement=excluded.minutes_stationnement
+              pause_minutes=excluded.pause_minutes
         """, (date_iso, sid, v.get("heure_debut"), v.get("heure_fin"),
               max(1, v.get("places") or 1), v.get("adresse_depart", ""),
-              v.get("pause_minutes") or 0, v.get("minutes_stationnement")))
+              v.get("pause_minutes") or 0))
         self.conn.commit()
 
     def set_pause(self, date_iso, sid, rang=None, debut=None):

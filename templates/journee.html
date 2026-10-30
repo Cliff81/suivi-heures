@@ -45,11 +45,21 @@
   <form method="post">
     <input type="hidden" name="action" value="dispos">
     <input type="hidden" name="date" value="{{ date_iso }}">
+    <div class="card-body" style="padding-bottom:0">
+      <div class="field" style="max-width:300px">
+        <label for="j-sta">Temps pour se garer, à chaque arrêt</label>
+        <input id="j-sta" type="number" min="0" name="stationnement"
+               value="{{ stationnement_defaut }}" style="width:90px">
+        <span class="hint">En minutes, compté à la prise en charge et à la
+          dépose de chaque course. Une course peut l'ajuster si le lieu est
+          particulier.</span>
+      </div>
+    </div>
     <div class="table-scroll">
       <table class="tbl">
         <thead><tr>
           <th class="txt">Disponible</th><th>Début</th><th>Fin</th>
-          <th>Places</th><th>Repos (min)</th><th>Station. (min)</th>
+          <th>Places</th><th>Repos (min)</th>
           <th class="txt">Départ (si différent du domicile)</th>
         </tr></thead>
         <tbody>
@@ -68,9 +78,6 @@
                  value="{{ d['places'] if d else 1 }}" style="width:62px"></td>
             <td><input type="number" min="0" name="pause_{{ s['id'] }}"
                  value="{{ d['pause_minutes'] if d else 0 }}" style="width:70px"></td>
-            <td><input type="number" min="0" name="sta_{{ s['id'] }}"
-                 value="{{ d['minutes_stationnement'] if d and d['minutes_stationnement'] is not none else stationnement_defaut }}"
-                 style="width:70px"></td>
             <td class="txt"><input type="text" name="adresse_{{ s['id'] }}"
                  value="{{ d['adresse_depart'] if d else '' }}"
                  placeholder="{{ adresses[s['id']] or 'aucune adresse sur la fiche' }}"
