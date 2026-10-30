@@ -1,42 +1,65 @@
+{% from "_icons.html" import ico, sprite %}
 <!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1B5FA8">
   <title>{% block title %}Suivi des heures{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231B5FA8'/%3E%3Cg fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 20V12a2 2 0 0 1 2-2h8v10'/%3E%3Cpath d='M16 14h3.2a2 2 0 0 1 1.7.9L23 18v2h-2'/%3E%3Ccircle cx='10.5' cy='20.5' r='1.8'/%3E%3Ccircle cx='18.5' cy='20.5' r='1.8'/%3E%3Cpath d='M11 13v3M9.5 14.5h3'/%3E%3C/g%3E%3C/svg%3E">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{{ sprite() }}
+<a class="skip" href="#contenu">Aller au contenu</a>
+
 {% if app_user %}
-<header class="banniere">
-  <span class="titre">🚑 Suivi des heures <span class="urg">— Accord 39h</span></span>
-  {% if app_is_admin %}
-  <nav>
+<header class="app-bar">
+  <div class="app-bar-in">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="brand-mark">{{ ico('logo') }}</span>
+      <span class="brand-txt">
+        <b>Suivi des heures</b>
+        <small>Accord 39 heures</small>
+      </span>
+    </a>
+    <div class="app-user">
+      <span class="who">
+        {{ ico('personne', 'ico-sm') }}<span class="nom">{{ app_user }}</span>
+        {% if not app_is_admin %}<span class="badge badge-user">Salarié</span>{% endif %}
+      </span>
+      <a class="btn btn-sm btn-ghost" href="{{ url_for('logout') }}">
+        {{ ico('sortie', 'ico-sm') }}Déconnexion
+      </a>
+    </div>
+  </div>
+
+  <nav class="app-nav" aria-label="Navigation principale">
     {% set ep = request.endpoint %}
-    <a href="{{ url_for('saisie') }}" class="{{ 'actif' if ep=='saisie' }}">Saisie</a>
-    <a href="{{ url_for('recap') }}" class="{{ 'actif' if ep=='recap' }}">Récapitulatif</a>
-    <a href="{{ url_for('recap_global') }}" class="{{ 'actif' if ep=='recap_global' }}">Récap global</a>
-    <a href="{{ url_for('releve') }}" class="{{ 'actif' if ep in ('releve','releve_excel') }}">Relevé</a>
-    <a href="{{ url_for('conversion') }}" class="{{ 'actif' if ep=='conversion' }}">Conversion</a>
-    <a href="{{ url_for('salaries') }}" class="{{ 'actif' if ep=='salaries' }}">Salariés</a>
-    <a href="{{ url_for('comptes') }}" class="{{ 'actif' if ep=='comptes' }}">Comptes</a>
+    <ul>
+      {% if app_is_admin %}
+        <li><a href="{{ url_for('saisie') }}" class="{{ 'actif' if ep=='saisie' }}">{{ ico('calendrier','ico-sm') }}Saisie</a></li>
+        <li><a href="{{ url_for('recap') }}" class="{{ 'actif' if ep=='recap' }}">{{ ico('tableau','ico-sm') }}Récapitulatif</a></li>
+        <li><a href="{{ url_for('recap_global') }}" class="{{ 'actif' if ep=='recap_global' }}">{{ ico('graphe','ico-sm') }}Récap global</a></li>
+        <li><a href="{{ url_for('releve') }}" class="{{ 'actif' if ep in ('releve','releve_excel') }}">{{ ico('document','ico-sm') }}Relevé</a></li>
+        <li><a href="{{ url_for('conversion') }}" class="{{ 'actif' if ep=='conversion' }}">{{ ico('calculatrice','ico-sm') }}Conversion</a></li>
+        <li><a href="{{ url_for('salaries') }}" class="{{ 'actif' if ep=='salaries' }}">{{ ico('equipe','ico-sm') }}Salariés</a></li>
+        <li><a href="{{ url_for('comptes') }}" class="{{ 'actif' if ep=='comptes' }}">{{ ico('cadenas','ico-sm') }}Comptes</a></li>
+      {% else %}
+        <li><a href="{{ url_for('espace') }}" class="{{ 'actif' if ep=='espace' }}">{{ ico('horloge','ico-sm') }}Ma journée</a></li>
+      {% endif %}
+    </ul>
   </nav>
-  {% endif %}
-  <span class="user">
-    👤 {{ app_user }}{% if not app_is_admin %} <span style="opacity:.8">(salarié)</span>{% endif %}
-    <a href="{{ url_for('logout') }}">Déconnexion</a>
-  </span>
 </header>
 {% endif %}
 
-<main>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}
-      <div class="flash {{ cat }}">{{ msg }}</div>
-    {% endfor %}
-  {% endwith %}
+{% block layout %}
+<main id="contenu">
+  {% include "_flashes.html" %}
   {% block content %}{% endblock %}
 </main>
+{% endblock %}
+
 {% block scripts %}{% endblock %}
 </body>
 </html>

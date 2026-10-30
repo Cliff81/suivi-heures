@@ -1,23 +1,45 @@
 {% extends "base.html" %}
+{% from "_icons.html" import ico %}
 {% block title %}Conversion — Suivi des heures{% endblock %}
 {% block content %}
-<h1 class="page">🔢 Conversion minutes → centièmes (heures décimales)</h1>
 
-<table class="recap" style="max-width:380px">
-  <thead><tr><th>Minutes (sur 60)</th><th>En centièmes (sur 100)</th></tr></thead>
-  <tbody>
-  {% for m, c in table %}
-    <tr><td>{{ m }}</td><td>{{ c }}</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="page-head">
+  <div class="titres">
+    <h1>Conversion</h1>
+    <p class="lede">Des minutes (base 60) vers les centièmes d'heure (base 100),
+       le format utilisé sur les bulletins de paie.</p>
+  </div>
+</div>
 
-<div class="conv-libre">
-  <label>Durée (HH:MM ou minutes) :</label>
-  <input type="text" id="entree" style="width:120px" autofocus>
-  <span>=</span>
-  <span class="res" id="res">0,00</span>
-  <span>centièmes</span>
+<div class="conv">
+  <div class="card">
+    <div class="card-head"><span class="t">{{ ico('calculatrice') }}Convertisseur</span></div>
+    <div class="card-body conv-calc">
+      <label for="entree">Durée (HH:MM ou minutes)</label>
+      <input type="text" id="entree" placeholder="07:30" autofocus
+             inputmode="decimal" style="margin-top:8px">
+      <p class="egal">=</p>
+      <p class="res" id="res">0,00</p>
+      <p class="hint" style="margin:0">centièmes d'heure</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <span class="t">{{ ico('tableau') }}Table de correspondance</span>
+      <span class="sub">par tranches de 5 minutes</span>
+    </div>
+    <div class="table-scroll" style="max-height:66vh;overflow-y:auto">
+      <table class="tbl">
+        <thead><tr><th class="txt">Minutes (sur 60)</th><th>Centièmes (sur 100)</th></tr></thead>
+        <tbody>
+        {% for m, c in table %}
+          <tr><td class="txt num">{{ m }}</td><td class="num">{{ c }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

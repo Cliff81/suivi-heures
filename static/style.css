@@ -1,239 +1,736 @@
+/* ==========================================================================
+   Suivi des heures — feuille de style
+   Un seul jeu de tokens, aucune couleur en dur dans les templates.
+   ========================================================================== */
+
 :root{
-  --rouge:#C8102E; --rouge-fonce:#9E0B22; --bleu:#0B4F8A; --bleu-clair:#1565C0;
-  --bleu-pale:#E3EEF7; --fond:#EEF3F7; --vert:#1B7F3B; --gris:#8A99A8;
-  --jaune:#FFD400; --blanc:#FFFFFF;
+  /* Fonds et surfaces */
+  --bg:#F1F4F8;
+  --surface:#FFFFFF;
+  --surface-2:#F7F9FC;
+  --surface-3:#EDF1F6;
+
+  /* Traits */
+  --line:#E2E8F0;
+  --line-2:#CBD5E1;
+
+  /* Texte */
+  --ink:#0F172A;
+  --ink-2:#475569;
+  --ink-3:#64748B;
+  --on-accent:#FFFFFF;
+
+  /* Accent : un seul bleu porte toute l'interface */
+  --accent:#1B5FA8;
+  --accent-2:#154C87;
+  --accent-soft:#E9F0F8;
+
+  /* Statuts : le rouge est réservé aux alertes et aux suppressions */
+  --danger:#C01F38;
+  --danger-2:#9C1429;
+  --danger-soft:#FCEDF0;
+  --ok:#14713C;
+  --ok-soft:#E7F4EC;
+  --warn:#9A5B00;
+  --warn-soft:#FBF2E0;
+
+  --focus:#2B7FD4;
+
+  --r-1:6px;
+  --r-2:10px;
+  --r-3:14px;
+
+  --sh-1:0 1px 2px rgba(15,23,42,.06);
+  --sh-2:0 4px 14px rgba(15,23,42,.07);
+  --sh-3:0 16px 40px rgba(15,23,42,.16);
+
+  --bar-h:58px;
 }
-*{box-sizing:border-box}
-body{margin:0;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-  background:var(--fond);color:#1A1A1A;font-size:14px}
-a{color:var(--bleu-clair);text-decoration:none}
+
+*,*::before,*::after{box-sizing:border-box}
+
+html{-webkit-text-size-adjust:100%}
+
+body{
+  margin:0;
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,
+    "Helvetica Neue",Arial,sans-serif;
+  font-size:15px;
+  line-height:1.45;
+  color:var(--ink);
+  background:var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+
+a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
-/* Banniere */
-header.banniere{background:var(--bleu);color:#fff;border-bottom:5px solid var(--jaune);
-  display:flex;align-items:center;gap:16px;padding:10px 18px;flex-wrap:wrap}
-header.banniere .titre{font-size:19px;font-weight:700}
-header.banniere .titre .urg{color:var(--jaune)}
-header.banniere nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:8px}
-header.banniere nav a{color:#fff;padding:6px 12px;border-radius:6px;font-weight:600}
-header.banniere nav a:hover{background:rgba(255,255,255,.15);text-decoration:none}
-header.banniere nav a.actif{background:var(--rouge)}
-header.banniere .user{margin-left:auto;display:flex;align-items:center;gap:10px;
-  font-size:13px}
-header.banniere .user a{background:var(--rouge);padding:5px 10px;border-radius:6px}
+h1,h2,h3{margin:0;line-height:1.25;font-weight:700;letter-spacing:-.01em}
 
-main{max-width:1200px;margin:18px auto;padding:0 16px}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
 
-/* Barre d'outils */
-.barre{background:#fff;border:1px solid #d7e1ea;border-radius:10px;
-  padding:12px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-  margin-bottom:14px}
-.barre label{font-weight:600}
-select,input[type=text],input[type=number],input[type=password]{
-  padding:6px 8px;border:1px solid #b9c7d4;border-radius:6px;font-size:14px;
-  background:#fff}
-input:focus,select:focus{outline:2px solid var(--bleu-clair);outline-offset:0}
+/* Icônes ------------------------------------------------------------------ */
+.ico{
+  width:18px;height:18px;flex:none;
+  fill:none;stroke:currentColor;stroke-width:1.75;
+  stroke-linecap:round;stroke-linejoin:round;
+  vertical-align:-3px;
+}
+.ico-sm{width:15px;height:15px}
+.ico-lg{width:22px;height:22px}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
 
-/* Boutons */
-.btn{border:0;border-radius:7px;padding:8px 14px;font-weight:700;cursor:pointer;
-  font-size:14px}
-.btn-rouge{background:var(--rouge);color:#fff}
-.btn-rouge:hover{background:var(--rouge-fonce)}
-.btn-bleu{background:var(--bleu-clair);color:#fff}
-.btn-bleu:hover{background:var(--bleu)}
-.btn-gris{background:#dde5ec;color:#234}
-.btn-sm{padding:5px 9px;font-size:13px}
+/* Accès clavier ----------------------------------------------------------- */
+.skip{
+  position:absolute;left:-999px;top:0;z-index:50;
+  background:var(--accent);color:var(--on-accent);
+  padding:10px 16px;border-radius:0 0 var(--r-1) 0;font-weight:600;
+}
+.skip:focus{left:0;text-decoration:none}
+
+/* ==========================================================================
+   Barre d'application
+   ========================================================================== */
+
+.app-bar{
+  background:var(--surface);
+  border-bottom:1px solid var(--line);
+  box-shadow:var(--sh-1);
+  position:sticky;top:0;z-index:30;
+}
+
+.app-bar-in{
+  max-width:1280px;margin:0 auto;
+  min-height:var(--bar-h);
+  padding:8px 20px;
+  display:flex;align-items:center;gap:16px;
+}
+
+.brand{display:flex;align-items:center;gap:11px;color:var(--ink);min-width:0}
+.brand:hover{text-decoration:none}
+.brand-mark{
+  width:36px;height:36px;flex:none;border-radius:9px;
+  background:var(--accent);color:var(--on-accent);
+  display:grid;place-items:center;
+}
+.brand-mark .ico{width:21px;height:21px;stroke-width:2}
+.brand-txt{display:flex;flex-direction:column;min-width:0}
+.brand-txt b{font-size:16px;font-weight:700;letter-spacing:-.015em;line-height:1.15}
+.brand-txt small{font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+
+.app-user{
+  margin-left:auto;display:flex;align-items:center;gap:12px;
+  font-size:13.5px;color:var(--ink-2);
+}
+.app-user .who{
+  display:flex;align-items:center;gap:7px;font-weight:600;color:var(--ink);
+  max-width:34vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.app-user .who .ico{color:var(--ink-3)}
+
+/* Navigation principale */
+.app-nav{
+  border-top:1px solid var(--line);
+  background:var(--surface);
+}
+.app-nav ul{
+  max-width:1280px;margin:0 auto;padding:0 12px;
+  list-style:none;display:flex;gap:2px;
+  overflow-x:auto;scrollbar-width:thin;
+}
+.app-nav a{
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+  padding:11px 12px;margin-bottom:-1px;
+  border-bottom:2px solid transparent;
+  color:var(--ink-2);font-weight:600;font-size:14px;
+}
+.app-nav a:hover{color:var(--ink);background:var(--surface-2);text-decoration:none}
+.app-nav a .ico{color:var(--ink-3)}
+.app-nav a.actif{color:var(--accent);border-bottom-color:var(--accent)}
+.app-nav a.actif .ico{color:var(--accent)}
+
+/* ==========================================================================
+   Mise en page
+   ========================================================================== */
+
+main{max-width:1280px;margin:0 auto;padding:22px 20px 56px}
+
+.page-head{
+  display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;
+  margin-bottom:18px;
+}
+.page-head .titres{min-width:0;flex:1 1 320px}
+.page-head h1{font-size:22px}
+.page-head .lede{margin:5px 0 0;color:var(--ink-3);font-size:13.5px;max-width:78ch}
+.page-head .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.lede{color:var(--ink-3);font-size:13.5px}
+.muted{color:var(--ink-3)}
+.nowrap{white-space:nowrap}
 .spacer{margin-left:auto}
+.num{font-variant-numeric:tabular-nums}
 
-/* Titres */
-h1.page{color:var(--rouge);font-size:20px;margin:0 0 4px}
-.sous{color:var(--gris);font-size:13px;margin:0 0 12px}
+/* ==========================================================================
+   Boutons
+   ========================================================================== */
 
-/* Cartes / semaines */
-.carte{background:#fff;border:1px solid #d7e1ea;border-radius:10px;padding:14px;
-  margin-bottom:14px}
-.carte > .entete{font-weight:700;color:var(--bleu);margin-bottom:8px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  border:1px solid var(--line-2);
+  background:var(--surface);color:var(--ink);
+  border-radius:var(--r-1);
+  padding:8px 14px;
+  font:inherit;font-size:14px;font-weight:600;
+  cursor:pointer;
+  transition:background .12s,border-color .12s,color .12s;
+}
+.btn:hover{background:var(--surface-3);text-decoration:none}
+.btn:active{transform:translateY(.5px)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
 
-/* Tables */
-table{border-collapse:collapse;width:100%;background:#fff}
-table.grille td,table.grille th{border:1px solid #d7e1ea;padding:4px;text-align:center}
-table.grille th{background:var(--bleu);color:#fff;font-size:12px;font-weight:700}
-table.grille td.jour{text-align:left;font-weight:600;white-space:nowrap}
-tr.weekend td.jour,tr.weekend td.date{color:var(--bleu-clair)}
-tr.hors td{color:var(--gris);background:#f4f7fa}
-td input{width:74px;text-align:center;padding:4px}
-td input.km{width:70px}
-td.calc{background:#E7ECF1;color:var(--bleu);font-weight:600}
-td.total{font-weight:700;color:var(--vert)}
-td.total.alerte{color:var(--rouge)}
-input.alerte{background:#FFD6D6}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn-primary:hover{background:var(--accent-2);border-color:var(--accent-2)}
 
-.tot-sem{margin-top:8px;display:flex;gap:18px;flex-wrap:wrap;font-weight:600;
-  border-top:1px solid #d7e1ea;padding-top:8px}
-.tot-sem .lib{color:#456}
-.k-total{color:var(--bleu)} .k-total.alerte{color:var(--rouge)}
-.k-sup35{color:var(--rouge)} .k-accord39{color:var(--vert)} .k-sup39{color:var(--rouge-fonce)}
+.btn-danger{background:var(--surface);border-color:var(--line-2);color:var(--danger)}
+.btn-danger:hover{background:var(--danger-soft);border-color:var(--danger)}
 
-/* Total mois */
-.total-mois{background:#fff;border:1px solid #d7e1ea;border-radius:10px;padding:16px}
-.total-mois h2{margin:0 0 10px;color:var(--bleu);font-size:16px}
-.total-mois .lignes div{margin:3px 0}
-.total-mois .v{font-weight:700;font-size:16px;margin:0 6px}
-.cent{color:#777}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn-ghost:hover{background:var(--surface-3);color:var(--ink)}
 
-.compteur{background:var(--bleu-pale);border:1px solid #b9d3ea;border-radius:10px;
-  padding:14px;margin-top:14px}
-.compteur .solde{font-size:22px;font-weight:800;color:var(--vert)}
-.compteur .solde.neg{color:var(--rouge)}
+.btn-sm{padding:6px 10px;font-size:13px}
+.btn-lg{padding:13px 20px;font-size:16px}
+.btn-block{width:100%}
+.btn-icon{padding:7px;width:34px;height:34px}
+.btn-icon.btn-sm{padding:6px;width:30px;height:30px}
 
-/* Recap tableau */
-table.recap td,table.recap th{border:1px solid #d7e1ea;padding:6px;text-align:center;
-  font-size:13px}
-table.recap th{background:var(--bleu);color:#fff}
-table.recap td.lib{text-align:left;font-weight:600;white-space:nowrap}
-table.recap tr.sup td{color:var(--rouge)}
-table.recap tr.conges td{background:var(--bleu-pale);color:var(--bleu);font-weight:700}
-table.recap td.an{font-weight:700;background:#f2f7fb}
+/* ==========================================================================
+   Formulaires
+   ========================================================================== */
 
-/* Conformite */
-.conf{margin-top:14px;border-radius:10px;padding:14px;border:1px solid}
-.conf.ok{background:#e9f7ee;border-color:#a8dab8}
-.conf.ko{background:#fdeaec;border-color:#f0b7be}
-.conf ul{margin:6px 0 0;padding-left:20px}
-.conf li.ok::marker{content:"✅ "}
-.conf li.ko{color:var(--rouge-fonce);font-weight:600}
-.conf li.ko::marker{content:"❌ "}
+label{font-weight:600;font-size:13px;color:var(--ink-2)}
 
-/* Recap global */
-.bandeau{background:var(--bleu);color:#fff;border-radius:10px;padding:16px 20px;
-  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
-  gap:10px;margin-bottom:14px}
-.bandeau .gros{font-size:18px;font-weight:800}
-.bandeau .jaune{color:var(--jaune);font-weight:700}
-table.glob td,table.glob th{border:1px solid #d7e1ea;padding:8px;text-align:center}
-table.glob th{background:var(--bleu);color:#fff}
-table.glob td.nom{text-align:left;font-weight:600}
-table.glob tr.tot td{background:var(--rouge);color:#fff;font-weight:800}
+input[type=text],input[type=number],input[type=password],input[type=time],
+select,textarea{
+  font:inherit;font-size:14px;
+  color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-2);border-radius:var(--r-1);
+  padding:8px 10px;
+  transition:border-color .12s,box-shadow .12s;
+  max-width:100%;
+}
+input:hover,select:hover{border-color:#AEBCCB}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(27,95,168,.16);
+}
+input::placeholder{color:#9AA7B5}
+select{
+  appearance:none;padding-right:30px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat:no-repeat;background-position:right 9px center;
+}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);margin:0}
 
-/* Listes salaries / comptes */
-ul.liste{list-style:none;padding:0;margin:0}
-ul.liste li{background:#fff;border:1px solid #d7e1ea;border-radius:8px;
-  padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
-  flex-wrap:wrap}
-ul.liste li .principal{font-weight:700;color:var(--bleu)}
-ul.liste li form{display:inline;margin:0}
-.grid-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:10px;align-items:end}
-.grid-form label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}
-.grid-form input{width:100%}
+/* Champ étiqueté */
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field > label{display:flex;align-items:center;gap:7px}
+.field > label .ico{color:var(--ink-3)}
+.field input,.field select{width:100%}
+.hint{font-size:12.5px;color:var(--ink-3)}
 
-/* Badges de role */
-.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
-  text-transform:uppercase;letter-spacing:.3px}
-.badge-admin{background:var(--rouge);color:#fff}
-.badge-user{background:#dde5ec;color:var(--bleu)}
+.check{
+  display:inline-flex;align-items:center;gap:8px;
+  font-weight:600;font-size:13.5px;color:var(--ink-2);cursor:pointer;
+}
+/* La case à cocher garde sa taille même dans un .field, où les champs
+   occupent toute la largeur. */
+.field input[type=checkbox],.check input[type=checkbox]{width:16px;flex:none}
+/* Aligne une case sur la ligne de base des champs voisins de la grille. */
+.form-grid .check{min-height:37px}
 
-/* Espace salarie : lignes de pause */
-.espace{max-width:760px}
-.deux-champs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.deux-champs label{display:block;font-weight:600;margin-bottom:4px}
-.deux-champs input{width:100%}
-.pause-ligne{display:flex;align-items:center;gap:8px;margin:8px 0}
-.pause-ligne input{flex:1;min-width:0;text-align:center}
-.pause-ligne span{color:var(--gris);font-weight:700}
-.espace input[type=time],.espace input[type=number]{font-size:17px;padding:10px}
-.btn-valider{width:100%;font-size:17px;padding:14px}
+.form-grid{
+  display:grid;gap:14px;align-items:end;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+}
 
-/* Flash */
-.flash{padding:10px 14px;border-radius:8px;margin-bottom:12px;font-weight:600}
-.flash.ok{background:#e9f7ee;color:var(--vert);border:1px solid #a8dab8}
-.flash.error{background:#fdeaec;color:var(--rouge-fonce);border:1px solid #f0b7be}
+/* Barre de filtres */
+.toolbar{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-2);box-shadow:var(--sh-1);
+  padding:12px 14px;margin-bottom:18px;
+  display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;
+}
+.toolbar .field{flex:0 1 auto}
+.toolbar .field input,.toolbar .field select{min-width:110px}
 
-/* Login */
-.login-box{max-width:360px;margin:60px auto;background:#fff;border-radius:12px;
-  border:1px solid #d7e1ea;padding:26px;box-shadow:0 8px 30px rgba(11,79,138,.12)}
-.login-box h1{color:var(--rouge);text-align:center;margin:0 0 6px}
-.login-box .sub{text-align:center;color:var(--gris);margin:0 0 18px}
-.login-box label{font-weight:600;display:block;margin:10px 0 4px}
-.login-box input{width:100%}
-.login-box .btn{width:100%;margin-top:18px}
+/* ==========================================================================
+   Cartes
+   ========================================================================== */
 
-.conv-libre{margin-top:18px;background:#fff;border:1px solid #d7e1ea;
-  border-radius:10px;padding:16px;display:flex;gap:10px;align-items:center;
-  flex-wrap:wrap}
-.conv-libre .res{font-size:18px;font-weight:800;color:var(--bleu);min-width:90px}
+.card{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-2);box-shadow:var(--sh-1);
+  margin-bottom:16px;overflow:hidden;
+}
+.card-head{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:12px 16px;
+  border-bottom:1px solid var(--line);
+  background:var(--surface-2);
+}
+.card-head h2,.card-head .t{
+  margin:0;font-size:14.5px;font-weight:700;color:var(--ink);
+  display:flex;align-items:center;gap:8px;
+}
+.card-head .t .ico{color:var(--ink-3)}
+.card-head .sub{font-size:12.5px;color:var(--ink-3);font-weight:500}
+.card-body{padding:16px}
+.card-body > :first-child{margin-top:0}
+.card-body > :last-child{margin-bottom:0}
+.card-foot{padding:12px 16px;border-top:1px solid var(--line);background:var(--surface-2)}
 
-/* Releve mensuel (document imprimable) */
-.releve{background:#fff;border:1px solid #d7e1ea;border-radius:10px;
-  padding:24px;margin-bottom:22px}
-.releve-tete{display:flex;justify-content:space-between;align-items:flex-start;
-  border-bottom:3px solid var(--rouge);padding-bottom:12px;margin-bottom:14px;gap:16px}
-.releve-tete .marque{font-size:15px;font-weight:800;color:var(--bleu)}
-.releve-tete .doc-titre{font-size:18px;font-weight:800;color:var(--rouge);
-  letter-spacing:.4px;margin-top:4px}
+.card-ok{border-left:3px solid var(--ok)}
+.card-ok .card-head .t{color:var(--ok)}
+
+/* ==========================================================================
+   Tableaux
+   ========================================================================== */
+
+.table-scroll{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:var(--r-1);
+}
+
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+
+/* Grille de saisie et tableaux de données */
+.tbl th,.tbl td{
+  padding:7px 10px;text-align:right;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+}
+.tbl thead th{
+  background:var(--surface-2);
+  color:var(--ink-2);font-size:11.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;
+  border-bottom:1px solid var(--line-2);
+}
+.tbl thead tr.groupes th{
+  text-align:center;color:var(--ink-3);
+  border-bottom:1px solid var(--line);
+  background:var(--surface-3);
+}
+.tbl thead tr.groupes th.vide{background:var(--surface-2)}
+.tbl th.g,.tbl td.g{border-left:1px solid var(--line)}
+.tbl td.txt,.tbl th.txt{text-align:left}
+.tbl tbody tr:hover td{background:var(--surface-2)}
+.tbl tbody tr:last-child td{border-bottom:0}
+
+/* Jours */
+.tbl td.jour{text-align:left;font-weight:600}
+.tbl td.date{text-align:left;color:var(--ink-3);font-size:13px}
+tr.weekend td.jour,tr.weekend td.date{color:var(--accent)}
+tr.hors td{background:var(--surface-2);color:var(--ink-3)}
+tr.hors:hover td{background:var(--surface-2)}
+
+/* Cellules calculées */
+.tbl td.calc{color:var(--ink-2);background:var(--surface-2);font-weight:600}
+.tbl td.total{font-weight:700;color:var(--ok)}
+.tbl td.total.alerte{color:var(--danger)}
+
+/* Saisie dans la grille */
+.tbl td input{
+  width:76px;text-align:center;padding:6px 6px;font-size:13.5px;
+  border-color:var(--line);background:var(--surface-2);
+}
+.tbl td input:hover{background:var(--surface)}
+.tbl td input:focus{background:var(--surface)}
+.tbl td input.km{width:72px}
+input.alerte,.tbl td input.alerte{
+  border-color:var(--danger);background:var(--danger-soft);color:var(--danger-2);
+}
+
+/* Tableau matriciel (récapitulatifs) : 1re colonne figée au scroll */
+.tbl.matrice td.lib,.tbl.matrice th.lib{
+  position:sticky;left:0;z-index:2;
+  text-align:left;font-weight:600;background:var(--surface);
+  border-right:1px solid var(--line-2);
+}
+.tbl.matrice thead th.lib{background:var(--surface-2);z-index:3}
+.tbl.matrice tbody tr:hover td.lib{background:var(--surface-2)}
+.tbl.matrice td.an{font-weight:700;background:var(--surface-2);border-left:1px solid var(--line-2)}
+.tbl.matrice tr.sup td{color:var(--danger)}
+.tbl.matrice tr.conges td{background:var(--accent-soft);color:var(--accent-2);font-weight:700}
+.tbl.matrice tr.conges:hover td{background:var(--accent-soft)}
+.tbl.matrice tr.conges td.lib{background:var(--accent-soft)}
+.tbl.matrice tr.total td{
+  background:var(--ink);color:#fff;font-weight:700;border-bottom:0;
+}
+.tbl.matrice tr.total:hover td{background:var(--ink)}
+.tbl.matrice tr.total td.lib{background:var(--ink);color:#fff}
+
+/* ==========================================================================
+   Statistiques (totaux de semaine, totaux du mois, bandeaux)
+   ========================================================================== */
+
+.stats{
+  display:grid;gap:1px;background:var(--line);
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  border-top:1px solid var(--line);
+}
+.stat{background:var(--surface-2);padding:10px 14px}
+.stat .lib{
+  display:block;font-size:11.5px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;
+}
+.stat .val{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .cent{font-size:12.5px;color:var(--ink-3);font-weight:600;margin-left:4px}
+
+.v-total{color:var(--ink)}
+.v-total.alerte{color:var(--danger)}
+.v-sup35{color:var(--warn)}
+.v-accord39{color:var(--ok)}
+.v-sup39{color:var(--danger)}
+
+.stats-cartes{
+  display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+}
+.stats-cartes .stat{
+  background:var(--surface-2);border:1px solid var(--line);
+  border-radius:var(--r-2);padding:12px 14px;
+}
+.stats-cartes .stat .val{font-size:22px}
+
+/* Bandeau de synthèse */
+.bandeau{
+  background:var(--accent);color:var(--on-accent);
+  border-radius:var(--r-2);padding:18px 22px;margin-bottom:18px;
+  display:flex;justify-content:space-between;align-items:center;gap:18px;
+  flex-wrap:wrap;box-shadow:var(--sh-2);
+}
+.bandeau .lib{
+  display:block;font-size:11.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;opacity:.78;margin-bottom:3px;
+}
+.bandeau .gros{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.bandeau .gros small{font-size:15px;font-weight:600;opacity:.8}
+.bandeau .cotes{display:flex;gap:28px;flex-wrap:wrap}
+.bandeau .cotes .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* Compteur de congés */
+.compteur{
+  background:var(--accent-soft);
+  border:1px solid #C6D9EC;border-radius:var(--r-2);
+  padding:14px 16px;
+}
+.compteur .t{
+  display:flex;align-items:center;gap:8px;
+  font-weight:700;color:var(--accent-2);margin-bottom:10px;font-size:14px;
+}
+.compteur .lib{
+  display:block;font-size:11.5px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;
+}
+.compteur .solde{
+  font-size:26px;font-weight:800;color:var(--ok);
+  font-variant-numeric:tabular-nums;margin-right:8px;
+}
+.compteur .solde.neg{color:var(--danger)}
+
+/* ==========================================================================
+   Badges, messages, listes
+   ========================================================================== */
+
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:.04em;
+  background:var(--surface-3);color:var(--ink-2);
+}
+.badge-admin{background:var(--accent);color:var(--on-accent)}
+.badge-user{background:var(--surface-3);color:var(--ink-2)}
+
+.flash{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:11px 14px;border-radius:var(--r-2);margin-bottom:14px;
+  font-weight:600;font-size:14px;border:1px solid;
+}
+.flash .ico{margin-top:1px}
+.flash.ok{background:var(--ok-soft);border-color:#B9DFC7;color:var(--ok)}
+.flash.error{background:var(--danger-soft);border-color:#F0BFC8;color:var(--danger-2)}
+
+/* Conformité légale */
+.conf{border-radius:var(--r-2);padding:14px 16px;border:1px solid;margin-top:18px}
+.conf .t{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.conf.ok{background:var(--ok-soft);border-color:#B9DFC7}
+.conf.ok .t{color:var(--ok)}
+.conf.ko{background:var(--danger-soft);border-color:#F0BFC8}
+.conf.ko .t{color:var(--danger-2)}
+.conf ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.conf li{display:flex;align-items:flex-start;gap:8px;font-size:13.5px}
+.conf li .ico{margin-top:2px;flex:none}
+.conf li.ok{color:var(--ink-2)}
+.conf li.ok .ico{color:var(--ok)}
+.conf li.ko{color:var(--danger-2);font-weight:600}
+.conf li.ko .ico{color:var(--danger)}
+
+/* Lignes (salariés, comptes) */
+.rows{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.rows li{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-2);box-shadow:var(--sh-1);
+  padding:12px 14px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.rows .ident{display:flex;align-items:center;gap:9px;min-width:150px}
+.rows .avatar{
+  width:32px;height:32px;flex:none;border-radius:50%;
+  background:var(--accent-soft);color:var(--accent);
+  display:grid;place-items:center;
+}
+.rows .principal{font-weight:700;color:var(--ink)}
+.rows .meta{font-size:12.5px;color:var(--ink-3)}
+.rows form{display:flex;align-items:center;gap:6px;margin:0;flex-wrap:wrap}
+.rows .outils{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+
+.vide{
+  text-align:center;color:var(--ink-3);
+  padding:34px 16px;border:1px dashed var(--line-2);
+  border-radius:var(--r-2);background:var(--surface-2);
+}
+
+/* ==========================================================================
+   Connexion
+   ========================================================================== */
+
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login{
+  width:100%;max-width:380px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-3);box-shadow:var(--sh-3);
+  padding:30px 28px;
+}
+.login .logo{
+  width:46px;height:46px;margin:0 auto 14px;border-radius:12px;
+  background:var(--accent);color:var(--on-accent);display:grid;place-items:center;
+}
+.login .logo .ico{width:26px;height:26px;stroke-width:2}
+.login h1{text-align:center;font-size:20px}
+.login .sub{text-align:center;color:var(--ink-3);font-size:13.5px;margin:5px 0 22px}
+.login .field{margin-bottom:14px}
+.login .btn{margin-top:8px}
+
+/* ==========================================================================
+   Espace salarié — « Ma journée » (pensé mobile d'abord)
+   ========================================================================== */
+
+.espace{max-width:680px;margin:0 auto}
+
+.jour-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:20px;padding:5px 13px;
+  font-size:13px;font-weight:600;color:var(--ink-2);
+  text-transform:capitalize;
+}
+.jour-chip .ico{color:var(--ink-3)}
+
+.recap-jour{display:flex;gap:22px;flex-wrap:wrap;margin:0}
+.recap-jour div{display:flex;flex-direction:column}
+.recap-jour .lib{
+  font-size:11.5px;font-weight:700;color:var(--ink-3);
+  text-transform:uppercase;letter-spacing:.04em;
+}
+.recap-jour .val{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.recap-jour .val.ok{color:var(--ok)}
+
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.heure-xl{font-size:19px !important;padding:12px !important;text-align:center;
+  font-variant-numeric:tabular-nums}
+
+.pauses{display:grid;gap:10px}
+.pause-ligne{display:flex;align-items:center;gap:8px}
+.pause-ligne input{flex:1;min-width:0;text-align:center;
+  font-size:17px;padding:11px;font-variant-numeric:tabular-nums}
+.pause-ligne .fleche{color:var(--ink-3);flex:none}
+
+.bloc{padding-top:16px;margin-top:16px;border-top:1px solid var(--line)}
+.bloc:first-child{padding-top:0;margin-top:0;border-top:0}
+.bloc > label{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.bloc > label .ico{color:var(--ink-3)}
+
+/* Barre de validation : simple bloc sur grand écran, collée en bas sur mobile */
+.submit-bar{margin-top:18px}
+
+/* ==========================================================================
+   Conversion
+   ========================================================================== */
+
+.conv{display:grid;gap:18px;grid-template-columns:minmax(0,320px) minmax(0,1fr);
+  align-items:start}
+.conv-calc{text-align:center;padding:26px 20px}
+.conv-calc input{
+  width:100%;max-width:220px;margin:0 auto;
+  font-size:24px;text-align:center;padding:12px;
+  font-variant-numeric:tabular-nums;
+}
+.conv-calc .res{
+  font-size:40px;font-weight:800;color:var(--accent);
+  font-variant-numeric:tabular-nums;margin:14px 0 2px;
+}
+.conv-calc .egal{color:var(--ink-3);margin:14px 0 0;font-size:20px}
+
+/* ==========================================================================
+   Relevé mensuel (document imprimable)
+   ========================================================================== */
+
+.releve{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-2);box-shadow:var(--sh-1);
+  padding:28px;margin-bottom:22px;
+}
+.releve-tete{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:18px;
+  border-bottom:2px solid var(--accent);padding-bottom:14px;margin-bottom:16px;
+}
+.releve-tete .marque{display:flex;align-items:center;gap:9px;
+  font-size:14px;font-weight:700;color:var(--accent)}
+.releve-tete .doc-titre{
+  font-size:17px;font-weight:800;color:var(--ink);
+  letter-spacing:-.01em;margin-top:6px;
+}
 .releve-tete .periode{text-align:right}
-.releve-tete .mois{font-size:18px;font-weight:800;color:var(--bleu)}
-.releve-tete .edite{font-size:12px;color:var(--gris)}
-.releve-salarie{display:flex;justify-content:space-between;align-items:baseline;
-  background:var(--bleu-pale);border:1px solid #b9d3ea;border-radius:8px;
-  padding:8px 14px;margin-bottom:14px;gap:12px;flex-wrap:wrap}
-.releve-salarie .nom{font-size:17px;font-weight:800;color:var(--bleu)}
-.releve-salarie .meta{font-size:12px;color:#456}
-.semaines-grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
-  gap:14px}
-table.releve-tab{border-collapse:collapse;width:100%;border:1px solid #cfdae5}
-table.releve-tab th,table.releve-tab td{border:1px solid #cfdae5;padding:5px 8px;
-  font-size:13px;text-align:left}
-table.releve-tab thead tr:first-child th{background:var(--bleu);color:#fff;
-  text-align:center;font-size:13px}
-table.releve-tab thead tr:last-child th{background:#1565C0;color:#fff;font-size:12px}
-table.releve-tab td.h{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
-table.releve-tab tr.repos td{color:var(--gris);font-style:italic}
-table.releve-tab tfoot td{background:#eef3f7;font-weight:700;color:var(--vert)}
-.releve-total{display:flex;justify-content:space-between;align-items:center;
-  margin-top:16px;background:var(--bleu);color:#fff;border-radius:8px;
-  padding:12px 18px;font-size:17px;font-weight:800}
-.releve-total .val small{color:var(--jaune);font-weight:700}
-.signatures{display:flex;justify-content:space-between;gap:40px;margin-top:34px}
-.signatures > div{flex:1;text-align:center;font-size:12px;color:#456}
-.signatures .ligne-sig{border-top:1px solid #99a;margin:0 10px 6px;height:38px}
+.releve-tete .mois{font-size:17px;font-weight:800;text-transform:capitalize}
+.releve-tete .edite{font-size:12px;color:var(--ink-3)}
+
+.releve-salarie{
+  display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  flex-wrap:wrap;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:var(--r-1);
+  padding:10px 14px;margin-bottom:16px;
+}
+.releve-salarie .nom{font-size:16px;font-weight:800}
+.releve-salarie .meta{font-size:12.5px;color:var(--ink-3)}
+
+.semaines-grille{
+  display:grid;gap:14px;
+  grid-template-columns:repeat(auto-fill,minmax(236px,1fr));
+}
+table.releve-tab{border:1px solid var(--line);border-radius:var(--r-1);
+  overflow:hidden;font-size:13px}
+table.releve-tab th,table.releve-tab td{
+  padding:5px 9px;text-align:left;border-bottom:1px solid var(--line);
+}
+table.releve-tab thead tr.sem th{
+  background:var(--accent);color:var(--on-accent);
+  text-align:center;font-size:12.5px;font-weight:700;
+}
+table.releve-tab thead tr.cols th{
+  background:var(--surface-2);color:var(--ink-3);
+  font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+}
+table.releve-tab td.h{text-align:right;font-weight:600;
+  font-variant-numeric:tabular-nums}
+table.releve-tab tr.repos td{color:var(--ink-3)}
+table.releve-tab tfoot td{
+  background:var(--surface-2);font-weight:700;color:var(--ok);border-bottom:0;
+}
+
+.releve-total{
+  display:flex;justify-content:space-between;align-items:center;gap:14px;
+  margin-top:18px;background:var(--ink);color:#fff;
+  border-radius:var(--r-1);padding:13px 18px;
+  font-size:16px;font-weight:700;
+}
+.releve-total .val{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+.releve-total .val small{opacity:.7;font-size:14px;font-weight:600}
+
+.signatures{display:flex;gap:40px;margin-top:38px}
+.signatures > div{flex:1;text-align:center;font-size:12px;color:var(--ink-3)}
+.signatures .ligne-sig{border-top:1px solid var(--line-2);margin:0 10px 7px;height:42px}
+
+/* ==========================================================================
+   Impression
+   ========================================================================== */
 
 @media print{
-  body{background:#fff}
-  header.banniere,.no-print,.flash{display:none !important}
+  :root{--bg:#fff}
+  body{background:#fff;font-size:12px}
+  .app-bar,.no-print,.flash{display:none !important}
   main{margin:0;max-width:none;padding:0}
-  .releve{border:0;border-radius:0;padding:0 6mm;margin:0;
+  .releve{border:0;border-radius:0;padding:0 6mm;margin:0;box-shadow:none;
     page-break-after:always}
   .releve:last-child{page-break-after:auto}
   .semaines-grille{grid-template-columns:repeat(2,1fr)}
-  table.releve-tab,.releve,.releve-total{box-shadow:none}
+  .releve-total{background:#fff;color:#000;border:2px solid #000}
+  table.releve-tab thead tr.sem th{background:#eee;color:#000}
 }
 
-/* --- Smartphone (saisie salarié confortable au doigt) --- */
-@media (max-width:600px){
+/* ==========================================================================
+   Écrans étroits
+   ========================================================================== */
+
+@media (max-width:860px){
+  .conv{grid-template-columns:1fr}
+}
+
+@media (max-width:640px){
   body{font-size:15px}
-  header.banniere{gap:8px;padding:10px 12px}
-  header.banniere .titre{font-size:16px;width:100%}
-  header.banniere .user{margin-left:0;width:100%;justify-content:space-between}
-  main{margin:12px auto;padding:0 12px}
-  h1.page{font-size:19px}
+  .app-bar-in{padding:8px 14px;gap:10px}
+  .brand-mark{width:32px;height:32px}
+  .brand-txt b{font-size:14.5px;white-space:nowrap}
+  /* Le bandeau doit tenir sur une ligne : on retire ce que la navigation
+     et la page redisent déjà (sous-titre, identifiant, rôle). */
+  .brand-txt small{display:none}
+  .app-user{font-size:13px;gap:8px}
+  .app-user .who{display:none}
+  .app-nav ul{padding:0 8px}
+  main{padding:16px 14px 90px}
 
-  /* Champs et boutons : grandes cibles tactiles */
-  input,select,.btn{font-size:16px}              /* >=16px évite le zoom iOS */
-  .btn{padding:12px 16px}
-  .carte{padding:14px}
+  .page-head h1{font-size:19px}
 
-  /* Espace « Ma journée » */
-  .deux-champs{grid-template-columns:1fr}        /* arrivée/départ empilés */
-  .espace input[type=time],.espace input[type=number]{font-size:19px;padding:12px}
-  .pause-ligne input{padding:12px;font-size:18px}
-  .pause-ligne .btn-sm{padding:10px 12px}
-  .btn-valider{padding:16px;font-size:18px}
+  /* Cibles tactiles : >= 16px évite le zoom automatique sur iOS */
+  input,select,.btn{font-size:16px}
+  .btn{padding:11px 15px}
+  .btn-sm{padding:8px 11px;font-size:14px}
 
-  /* Historique du mois : pleine largeur, lisible */
-  .espace table.grille{width:100%}
-  .espace table.grille th,.espace table.grille td{padding:8px 6px;font-size:14px}
+  .toolbar{padding:12px;gap:10px}
+  .toolbar .field{flex:1 1 140px}
 
-  /* La grande grille de saisie admin reste scrollable horizontalement */
-  .semaine table.grille{display:block;overflow-x:auto;white-space:nowrap}
+  .duo{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .bandeau{padding:16px}
+  .bandeau .gros{font-size:22px}
+  .bandeau .cotes{gap:18px}
+
+  .rows li{align-items:stretch;flex-direction:column}
+  .rows .outils{margin-left:0}
+  .rows form{width:100%}
+  .rows form input[type=text],.rows form input[type=password],.rows form select{
+    flex:1 1 110px;min-width:0;width:auto}
+
+  .releve{padding:18px 14px}
+  .semaines-grille{grid-template-columns:1fr}
+  .signatures{gap:18px}
+
+  /* La grande grille admin reste défilable horizontalement */
+  .tbl td input{width:66px}
+  .tbl td input.km{width:62px}
+
+  /* Historique du salarié : quatre colonnes, autant qu'elles tiennent
+     dans l'écran plutôt qu'un tableau à faire défiler. */
+  .espace .tbl th,.espace .tbl td{padding:8px 7px}
+  .espace .tbl th,.espace .tbl td.jour{white-space:normal}
+
+  /* Barre de validation collée en bas sur « Ma journée » */
+  .submit-bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    background:var(--surface);border-top:1px solid var(--line);
+    box-shadow:0 -4px 14px rgba(15,23,42,.08);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  .submit-bar .btn{width:100%;padding:14px;font-size:17px}
 }

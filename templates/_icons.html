@@ -1,0 +1,125 @@
+{#
+  Jeu d'icônes : un seul sprite SVG posé une fois dans la page,
+  réutilisé partout via <use>. Aucune icône en texte (emoji) dans les pages :
+  l'emoji dépend de la police du poste et ne se colore pas.
+#}
+{% macro ico(nom, cls="") -%}
+<svg class="ico {{ cls }}" aria-hidden="true" focusable="false"><use href="#i-{{ nom }}"/></svg>
+{%- endmacro %}
+
+{% macro sprite() -%}
+<svg class="sprite" aria-hidden="true" focusable="false"
+     xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="g-cross"><path d="M12 4v16M4 12h16"/></g>
+  </defs>
+
+  <symbol id="i-logo" viewBox="0 0 24 24">
+    <path d="M3 17V9a2 2 0 0 1 2-2h8v10"/>
+    <path d="M13 11h3.6a2 2 0 0 1 1.7.9L21 16v1h-2"/>
+    <circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/>
+    <path d="M9.5 17.5h5"/><path d="M8 9.5v4M6 11.5h4"/>
+  </symbol>
+
+  <symbol id="i-calendrier" viewBox="0 0 24 24">
+    <rect x="3" y="5" width="18" height="16" rx="2"/>
+    <path d="M8 3v4M16 3v4M3 10h18"/>
+  </symbol>
+  <symbol id="i-tableau" viewBox="0 0 24 24">
+    <rect x="3" y="4" width="18" height="16" rx="2"/>
+    <path d="M3 9h18M9 9v11"/>
+  </symbol>
+  <symbol id="i-graphe" viewBox="0 0 24 24">
+    <path d="M4 20V5"/><path d="M4 20h16"/>
+    <path d="M8 20v-6M13 20V8M18 20v-9"/>
+  </symbol>
+  <symbol id="i-document" viewBox="0 0 24 24">
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>
+  </symbol>
+  <symbol id="i-calculatrice" viewBox="0 0 24 24">
+    <rect x="4" y="2" width="16" height="20" rx="2"/>
+    <rect x="7" y="5" width="10" height="4" rx="1"/>
+    <path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"/>
+  </symbol>
+  <symbol id="i-equipe" viewBox="0 0 24 24">
+    <circle cx="9" cy="8" r="3.2"/>
+    <path d="M2.5 20c0-3.4 2.9-5.5 6.5-5.5s6.5 2.1 6.5 5.5"/>
+    <path d="M16.5 5.2a3.2 3.2 0 0 1 0 5.9"/><path d="M18 14.9c2.1.7 3.5 2.4 3.5 5.1"/>
+  </symbol>
+  <symbol id="i-cadenas" viewBox="0 0 24 24">
+    <rect x="4" y="10" width="16" height="11" rx="2"/>
+    <path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14.5v2.5"/>
+  </symbol>
+  <symbol id="i-personne" viewBox="0 0 24 24">
+    <circle cx="12" cy="8" r="3.6"/>
+    <path d="M4.5 20.5c0-3.8 3.3-6 7.5-6s7.5 2.2 7.5 6"/>
+  </symbol>
+  <symbol id="i-sortie" viewBox="0 0 24 24">
+    <path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+    <path d="M9 16l-4-4 4-4"/><path d="M15 12H5"/>
+  </symbol>
+
+  <symbol id="i-horloge" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="M12 6.8V12l3.6 2.2"/>
+  </symbol>
+  <symbol id="i-depart" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="M9.5 8.5l6 3.5-6 3.5z"/>
+  </symbol>
+  <symbol id="i-drapeau" viewBox="0 0 24 24">
+    <path d="M5 21V4"/><path d="M5 5h11l-1.6 3.2L16 11.5H5z"/>
+  </symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="M10 9.5v5M14 9.5v5"/>
+  </symbol>
+  <symbol id="i-route" viewBox="0 0 24 24">
+    <path d="M8 3L5.5 21"/><path d="M16 3l2.5 18"/>
+    <path d="M12 4v2.5M12 11v2.5M12 18v2.5"/>
+  </symbol>
+
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-croix" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-fleche-g" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-fleche-d" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></symbol>
+  <symbol id="i-check-cercle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.8 2.8L16 9.5"/>
+  </symbol>
+  <symbol id="i-alerte" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/>
+  </symbol>
+  <symbol id="i-info" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8h.01"/>
+  </symbol>
+  <symbol id="i-balance" viewBox="0 0 24 24">
+    <path d="M12 4v16M7 20h10"/><path d="M4 8h16M8.5 7l-3.5.8M15.5 7l3.5.8"/>
+    <path d="M2.5 13.5a2.8 2.8 0 0 0 5 0L5 8zM16.5 13.5a2.8 2.8 0 0 0 5 0L19 8z"/>
+  </symbol>
+
+  <symbol id="i-enregistrer" viewBox="0 0 24 24">
+    <path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h7V3"/><path d="M8 14h8v7H8z"/>
+  </symbol>
+  <symbol id="i-crayon" viewBox="0 0 24 24">
+    <path d="M4 20h4L19.5 8.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16z"/>
+  </symbol>
+  <symbol id="i-corbeille" viewBox="0 0 24 24">
+    <path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/>
+    <path d="M6.5 7l1 13h9l1-13"/><path d="M10.5 11v5M13.5 11v5"/>
+  </symbol>
+  <symbol id="i-telecharger" viewBox="0 0 24 24">
+    <path d="M12 3v12"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M4 20h16"/>
+  </symbol>
+  <symbol id="i-imprimer" viewBox="0 0 24 24">
+    <path d="M7 8V3h10v5"/>
+    <path d="M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/>
+    <rect x="7" y="14" width="10" height="7" rx="1"/>
+  </symbol>
+  <symbol id="i-cle" viewBox="0 0 24 24">
+    <circle cx="8" cy="12" r="4"/><path d="M12 12h9"/><path d="M17 12v3.5M20 12v2.5"/>
+  </symbol>
+  <symbol id="i-soleil" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/>
+  </symbol>
+</svg>
+{%- endmacro %}

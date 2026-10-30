@@ -1,102 +1,159 @@
 {% extends "base.html" %}
+{% from "_icons.html" import ico %}
 {% block title %}Saisie — Suivi des heures{% endblock %}
 {% block content %}
 
-<form class="barre" method="get" action="{{ url_for('saisie') }}" id="nav">
-  <label>Année :</label>
-  <input type="number" name="annee" value="{{ annee }}" min="2000" max="2100"
-         style="width:90px" onchange="document.getElementById('nav').submit()">
-  <label>Salarié :</label>
-  <select name="sid" onchange="document.getElementById('nav').submit()">
-    {% for s in sals %}
-      <option value="{{ s['id'] }}" {{ 'selected' if s['id']==sid }}>{{ s['nom'] if not s['prenom'] else (s['prenom'] ~ ' ' ~ s['nom']) }}</option>
-    {% endfor %}
-  </select>
-  <label>Mois :</label>
-  <select name="mois" onchange="document.getElementById('nav').submit()">
-    {% for nom in MOIS_NOMS %}
-      <option value="{{ loop.index }}" {{ 'selected' if loop.index==mois }}>{{ nom }}</option>
-    {% endfor %}
-  </select>
+<form class="toolbar" method="get" action="{{ url_for('saisie') }}" id="nav">
+  <div class="field">
+    <label for="f-sid">Salarié</label>
+    <select id="f-sid" name="sid" onchange="document.getElementById('nav').submit()">
+      {% for s in sals %}
+        <option value="{{ s['id'] }}" {{ 'selected' if s['id']==sid }}>{{ s['nom'] if not s['prenom'] else (s['prenom'] ~ ' ' ~ s['nom']) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="f-mois">Mois</label>
+    <select id="f-mois" name="mois" onchange="document.getElementById('nav').submit()">
+      {% for nom in MOIS_NOMS %}
+        <option value="{{ loop.index }}" {{ 'selected' if loop.index==mois }}>{{ nom }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="f-annee">Année</label>
+    <input id="f-annee" type="number" name="annee" value="{{ annee }}" min="2000" max="2100"
+           style="width:100px" onchange="document.getElementById('nav').submit()">
+  </div>
 </form>
 
 {% if not sal %}
-  <p class="sous">Aucun salarié. Ajoutez-en un dans l'onglet « Salariés ».</p>
+  <p class="vide">Aucun salarié. Ajoutez-en un dans l'onglet « Salariés ».</p>
 {% else %}
 <form method="post" action="{{ url_for('saisie', sid=sid, annee=annee, mois=mois) }}" id="grille">
-  <h1 class="page">🧑‍⚕️ {{ sal['prenom'] }} {{ sal['nom'] }}
-    <span style="color:var(--bleu);font-size:16px">— {{ MOIS_NOMS[mois-1] }} {{ annee }}</span></h1>
-  <p class="sous">⏱ Durée contractuelle : {{ '%02d:%02d'|format(seuil_min//60, seuil_min%60) }}/sem.
-     &nbsp;·&nbsp; ⚠ amplitude 12h/j · 10h trav./j · 48h/sem · 44h moy./12 sem.</p>
+
+  <div class="page-head">
+    <div class="titres">
+      <h1>{{ sal['prenom'] }} {{ sal['nom'] }}
+        <span class="muted" style="font-weight:600">— {{ MOIS_NOMS[mois-1] }} {{ annee }}</span></h1>
+      <p class="lede">Durée contractuelle {{ '%02d:%02d'|format(seuil_min//60, seuil_min%60) }}/semaine.
+         Limites surveillées : amplitude 12 h/jour · 10 h travaillées/jour ·
+         48 h/semaine · 44 h en moyenne sur 12 semaines.</p>
+    </div>
+  </div>
 
   {% for sem in semaines %}
-  <div class="carte semaine" data-num="{{ sem.num }}">
-    <div class="entete">Semaine {{ sem.num }} (du {{ sem.du }} au {{ sem.au }})</div>
-    <table class="grille">
-      <thead><tr>
-        <th>Jour</th><th>Date</th>
-        <th>Amplitude début</th><th>Amplitude fin</th>
-        <th>Pause début</th><th>Pause fin</th>
-        <th>Km jour</th><th>Km comm.</th><th>Km à vide</th>
-        <th>Heures trav.</th>
-      </tr></thead>
-      <tbody>
-      {% for j in sem.jours %}
-        <tr class="{{ 'hors' if j.hors_mois }} {{ 'weekend' if j.weekend and not j.hors_mois }}">
-          <td class="jour">{{ j.jour_nom }}</td>
-          <td class="date">{{ j.date_fr }}</td>
-          {% if j.hors_mois %}
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-          {% else %}
-            <td><input type="text" class="hh" name="{{ j.iso }}__amp_d" value="{{ j.amp_d }}" data-iso="{{ j.iso }}" data-f="amp_d"></td>
-            <td><input type="text" class="hh" name="{{ j.iso }}__amp_f" value="{{ j.amp_f }}" data-iso="{{ j.iso }}" data-f="amp_f"></td>
-            <td><input type="text" class="hh" name="{{ j.iso }}__pause_d" value="{{ j.pause_d }}" data-iso="{{ j.iso }}" data-f="pause_d"></td>
-            <td><input type="text" class="hh" name="{{ j.iso }}__pause_f" value="{{ j.pause_f }}" data-iso="{{ j.iso }}" data-f="pause_f"></td>
-            <td><input type="text" class="km" name="{{ j.iso }}__km_jour" value="{{ j.km_jour }}" data-iso="{{ j.iso }}" data-f="km_jour"></td>
-            <td><input type="text" class="km" name="{{ j.iso }}__km_com" value="{{ j.km_com }}" data-iso="{{ j.iso }}" data-f="km_com"></td>
-            <td class="calc" data-vide="{{ j.iso }}"></td>
-            <td class="total" data-total="{{ j.iso }}">00:00</td>
-          {% endif %}
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    <div class="tot-sem">
-      <span><span class="lib">Total semaine :</span> <b class="k-total" data-w="{{ sem.num }}" data-k="total">00:00</b></span>
-      <span><span class="lib">Sup. &gt; 35h :</span> <b class="k-sup35" data-w="{{ sem.num }}" data-k="sup35">00:00</b></span>
-      <span><span class="lib">Dans accord 39h :</span> <b class="k-accord39" data-w="{{ sem.num }}" data-k="accord39">00:00</b></span>
-      <span><span class="lib">Sup. &gt; 39h (congés) :</span> <b class="k-sup39" data-w="{{ sem.num }}" data-k="sup39">00:00</b></span>
+  <section class="card semaine" data-num="{{ sem.num }}">
+    <div class="card-head">
+      <span class="t">{{ ico('calendrier') }}Semaine {{ sem.num }}</span>
+      <span class="sub">du {{ sem.du }} au {{ sem.au }}</span>
     </div>
-  </div>
+
+    <div class="table-scroll">
+      <table class="tbl">
+        <thead>
+          <tr class="groupes">
+            <th class="vide" colspan="2"></th>
+            <th class="g" colspan="2">Amplitude</th>
+            <th class="g" colspan="2">Pause</th>
+            <th class="g" colspan="3">Kilomètres</th>
+            <th class="g">Travail</th>
+          </tr>
+          <tr>
+            <th class="txt">Jour</th>
+            <th class="txt">Date</th>
+            <th class="g">Début</th><th>Fin</th>
+            <th class="g">Début</th><th>Fin</th>
+            <th class="g">Jour</th><th>Commercial</th><th>À vide</th>
+            <th class="g">Heures</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for j in sem.jours %}
+          <tr class="{{ 'hors' if j.hors_mois }} {{ 'weekend' if j.weekend and not j.hors_mois }}">
+            <td class="jour">{{ j.jour_nom }}</td>
+            <td class="date">{{ j.date_fr }}</td>
+            {% if j.hors_mois %}
+              <td class="g"></td><td></td><td class="g"></td><td></td>
+              <td class="g"></td><td></td><td></td><td class="g"></td>
+            {% else %}
+              <td class="g"><input type="text" class="hh" name="{{ j.iso }}__amp_d" value="{{ j.amp_d }}" data-iso="{{ j.iso }}" data-f="amp_d" aria-label="Amplitude début {{ j.date_fr }}"></td>
+              <td><input type="text" class="hh" name="{{ j.iso }}__amp_f" value="{{ j.amp_f }}" data-iso="{{ j.iso }}" data-f="amp_f" aria-label="Amplitude fin {{ j.date_fr }}"></td>
+              <td class="g"><input type="text" class="hh" name="{{ j.iso }}__pause_d" value="{{ j.pause_d }}" data-iso="{{ j.iso }}" data-f="pause_d" aria-label="Pause début {{ j.date_fr }}"></td>
+              <td><input type="text" class="hh" name="{{ j.iso }}__pause_f" value="{{ j.pause_f }}" data-iso="{{ j.iso }}" data-f="pause_f" aria-label="Pause fin {{ j.date_fr }}"></td>
+              <td class="g"><input type="text" class="km" name="{{ j.iso }}__km_jour" value="{{ j.km_jour }}" data-iso="{{ j.iso }}" data-f="km_jour" aria-label="Km jour {{ j.date_fr }}"></td>
+              <td><input type="text" class="km" name="{{ j.iso }}__km_com" value="{{ j.km_com }}" data-iso="{{ j.iso }}" data-f="km_com" aria-label="Km commercial {{ j.date_fr }}"></td>
+              <td class="calc" data-vide="{{ j.iso }}"></td>
+              <td class="total g" data-total="{{ j.iso }}">00:00</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="lib">Total semaine</span>
+        <span class="val v-total" data-w="{{ sem.num }}" data-k="total">00:00</span></div>
+      <div class="stat"><span class="lib">Sup. au-delà de 35 h</span>
+        <span class="val v-sup35" data-w="{{ sem.num }}" data-k="sup35">00:00</span></div>
+      <div class="stat"><span class="lib">Dans l'accord 39 h</span>
+        <span class="val v-accord39" data-w="{{ sem.num }}" data-k="accord39">00:00</span></div>
+      <div class="stat"><span class="lib">Au-delà de 39 h (congés)</span>
+        <span class="val v-sup39" data-w="{{ sem.num }}" data-k="sup39">00:00</span></div>
+    </div>
+  </section>
   {% endfor %}
 
-  <div class="total-mois">
-    <h2>TOTAL DU MOIS</h2>
-    <div class="lignes">
-      <div>Total heures travaillées : <span class="v k-total" data-m="total">00:00</span><span class="cent" data-mc="total">(0.00)</span></div>
-      <div>Total heures supplémentaires (&gt; 35h) : <span class="v k-sup35" data-m="sup35">00:00</span><span class="cent" data-mc="sup35">(0.00)</span></div>
-      <div>Dont rentrant dans l'accord 39h : <span class="v k-accord39" data-m="accord39">00:00</span><span class="cent" data-mc="accord39">(0.00)</span></div>
-      <div>Heures &gt; 39h ouvrant droit à congés : <span class="v k-sup39" data-m="sup39">00:00</span><span class="cent" data-mc="sup39">(0.00)</span></div>
+  <section class="card">
+    <div class="card-head">
+      <span class="t">{{ ico('graphe') }}Total du mois</span>
+      <span class="sub">{{ MOIS_NOMS[mois-1] }} {{ annee }}</span>
     </div>
+    <div class="card-body">
 
-    <div style="margin-top:14px">
-      <label>Heures supplémentaires PAYÉES ce mois :</label>
-      <input type="text" name="payees" value="{{ payees }}" style="width:90px"> <span class="cent">(format HH:MM)</span>
-    </div>
+      <div class="stats-cartes">
+        <div class="stat"><span class="lib">Heures travaillées</span>
+          <span class="val v-total" data-m="total">00:00</span>
+          <span class="cent" data-mc="total">(0.00)</span></div>
+        <div class="stat"><span class="lib">Sup. au-delà de 35 h</span>
+          <span class="val v-sup35" data-m="sup35">00:00</span>
+          <span class="cent" data-mc="sup35">(0.00)</span></div>
+        <div class="stat"><span class="lib">Dans l'accord 39 h</span>
+          <span class="val v-accord39" data-m="accord39">00:00</span>
+          <span class="cent" data-mc="accord39">(0.00)</span></div>
+        <div class="stat"><span class="lib">Au-delà de 39 h → congés</span>
+          <span class="val v-sup39" data-m="sup39">00:00</span>
+          <span class="cent" data-mc="sup39">(0.00)</span></div>
+      </div>
 
-    <div class="compteur">
-      <div class="entete" style="font-weight:700;color:var(--bleu)">🏖 Compteur d'heures de congés (&gt; 39h)</div>
-      <div style="margin:8px 0">Heures de congés PRISES ce mois :
-        <input type="text" name="pris" value="{{ pris }}" style="width:90px"> <span class="cent">(retirées du compteur)</span></div>
-      <div>SOLDE du compteur (fin de ce mois) :
-        <span class="solde {{ 'neg' if solde.startswith('-') }}">{{ solde }}</span>
-        <span class="cent">(recalculé après enregistrement)</span></div>
-    </div>
+      <div class="bloc">
+        <div class="field" style="max-width:260px">
+          <label for="payees">Heures supplémentaires payées ce mois</label>
+          <input id="payees" type="text" name="payees" value="{{ payees }}" style="width:120px">
+          <span class="hint">Format HH:MM</span>
+        </div>
+      </div>
 
-    <div style="margin-top:16px">
-      <button class="btn btn-rouge" type="submit">💾 Enregistrer</button>
+      <div class="bloc">
+        <div class="compteur">
+          <div class="t">{{ ico('soleil') }}Compteur d'heures de congés (au-delà de 39 h)</div>
+          <div class="field" style="max-width:260px;margin-bottom:12px">
+            <label for="pris">Heures de congés prises ce mois</label>
+            <input id="pris" type="text" name="pris" value="{{ pris }}" style="width:120px">
+            <span class="hint">Retirées du compteur</span>
+          </div>
+          <span class="lib">Solde à la fin de ce mois</span>
+          <span class="solde {{ 'neg' if solde.startswith('-') }}">{{ solde }}</span>
+          <span class="hint">recalculé après enregistrement</span>
+        </div>
+      </div>
+
     </div>
-  </div>
+    <div class="card-foot">
+      <button class="btn btn-primary" type="submit">{{ ico('enregistrer') }}Enregistrer</button>
+    </div>
+  </section>
 </form>
 {% endif %}
 {% endblock %}
@@ -172,7 +229,7 @@ function recalc(){
     const supAcc = Math.max(0,total-SEUIL);
     const accord = sup35-supAcc;
     const t = sem.querySelector(`[data-w="${num}"][data-k="total"]`);
-    t.textContent = fmtHM(total) + (total>MAX_SEMAINE?"  ⚠>48h":"");
+    t.textContent = fmtHM(total) + (total>MAX_SEMAINE?" ⚠ >48h":"");
     t.classList.toggle("alerte", total>MAX_SEMAINE);
     sem.querySelector(`[data-w="${num}"][data-k="sup35"]`).textContent = fmtHM(sup35);
     sem.querySelector(`[data-w="${num}"][data-k="accord39"]`).textContent = fmtHM(accord);

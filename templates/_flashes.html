@@ -1,0 +1,8 @@
+{% from "_icons.html" import ico %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="flash {{ cat }}" role="status">
+      {{ ico( 'check-cercle' if cat == 'ok' else 'alerte' ) }}<span>{{ msg }}</span>
+    </div>
+  {% endfor %}
+{% endwith %}

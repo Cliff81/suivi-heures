@@ -1,93 +1,138 @@
 {% extends "base.html" %}
+{% from "_icons.html" import ico %}
 {% block title %}Ma journée — Suivi des heures{% endblock %}
 {% block content %}
 
 {% if not sal %}
-  <div class="carte">
-    <h1 class="page">Bonjour {{ login }}</h1>
-    <p class="sous">Votre compte n'est rattaché à aucun salarié. Contactez un
-       administrateur pour qu'il vous associe à votre fiche salarié.</p>
+  <div class="espace">
+    <div class="page-head">
+      <div class="titres"><h1>Bonjour {{ login }}</h1></div>
+    </div>
+    <div class="card"><div class="card-body">
+      <p class="lede" style="margin:0">Votre compte n'est rattaché à aucun salarié.
+         Contactez un administrateur pour qu'il vous associe à votre fiche salarié.</p>
+    </div></div>
   </div>
 {% else %}
 <div class="espace">
-  <h1 class="page">👋 Bonjour {{ nom }}</h1>
-  <p class="sous" style="text-transform:capitalize">{{ date_fr }}</p>
+
+  <div class="page-head">
+    <div class="titres">
+      <h1>Bonjour {{ nom }}</h1>
+      <p class="lede" style="margin-top:8px">
+        <span class="jour-chip">{{ ico('calendrier','ico-sm') }}{{ date_fr }}</span>
+      </p>
+    </div>
+  </div>
 
   {% if saisie %}
-    <div class="carte" style="border-left:5px solid var(--vert)">
-      <div class="entete" style="color:var(--vert)">✅ Journée enregistrée</div>
-      <p style="margin:6px 0">Prise de service <b>{{ saisie.amp_d }}</b> · Fin de service <b>{{ saisie.amp_f }}</b>
-         · Temps de travail : <b style="color:var(--vert)">{{ saisie.travail }}</b></p>
-      <p class="sous" style="margin:4px 0 0">Vous pouvez encore corriger votre saisie
-         aujourd'hui. Elle sera verrouillée demain.</p>
+  <div class="card card-ok">
+    <div class="card-head">
+      <span class="t">{{ ico('check-cercle') }}Journée enregistrée</span>
+      <span class="sub spacer">Modifiable jusqu'à ce soir</span>
     </div>
+    <div class="card-body">
+      <div class="recap-jour">
+        <div><span class="lib">Prise de service</span><span class="val">{{ saisie.amp_d }}</span></div>
+        <div><span class="lib">Fin de service</span><span class="val">{{ saisie.amp_f }}</span></div>
+        <div><span class="lib">Temps de travail</span>
+             <span class="val ok">{{ saisie.travail }}</span></div>
+      </div>
+    </div>
+  </div>
   {% endif %}
 
-  <form method="post" class="carte" id="majournee">
+  <form method="post" id="majournee">
     <input type="hidden" name="date" value="{{ date_iso }}">
-    <div class="entete">{{ "Corriger ma journée" if saisie else "Saisir ma journée" }}</div>
 
-    <div class="deux-champs">
-      <div>
-        <label>🚑 Prise de service</label>
-        <input type="time" name="amp_d" inputmode="numeric"
-               value="{{ saisie.amp_d if saisie else '' }}" required>
+    <div class="card">
+      <div class="card-head">
+        <span class="t">{{ ico('horloge') }}{{ "Corriger ma journée" if saisie else "Saisir ma journée" }}</span>
       </div>
-      <div>
-        <label>🏁 Fin de service</label>
-        <input type="time" name="amp_f" inputmode="numeric"
-               value="{{ saisie.amp_f if saisie else '' }}" required>
-      </div>
-    </div>
+      <div class="card-body">
 
-    <div style="margin-top:16px">
-      <label style="font-weight:600">Pauses (facultatif)</label>
-      <div id="pauses">
-        {% for p in pauses %}
-        <div class="pause-ligne">
-          <input type="time" name="pause_d" value="{{ p.d }}" aria-label="Début pause">
-          <span>→</span>
-          <input type="time" name="pause_f" value="{{ p.f }}" aria-label="Fin pause">
-          <button type="button" class="btn btn-gris btn-sm" onclick="this.parentElement.remove()">✕</button>
+        <div class="bloc">
+          <div class="duo">
+            <div class="field">
+              <label for="amp_d">{{ ico('depart','ico-sm') }} Prise de service</label>
+              <input id="amp_d" class="heure-xl" type="time" name="amp_d" inputmode="numeric"
+                     value="{{ saisie.amp_d if saisie else '' }}" required>
+            </div>
+            <div class="field">
+              <label for="amp_f">{{ ico('drapeau','ico-sm') }} Fin de service</label>
+              <input id="amp_f" class="heure-xl" type="time" name="amp_f" inputmode="numeric"
+                     value="{{ saisie.amp_f if saisie else '' }}" required>
+            </div>
+          </div>
         </div>
-        {% endfor %}
+
+        <div class="bloc">
+          <label>{{ ico('pause','ico-sm') }} Pauses <span class="hint">(facultatif)</span></label>
+          <div class="pauses" id="pauses">
+            {% for p in pauses %}
+            <div class="pause-ligne">
+              <input type="time" name="pause_d" value="{{ p.d }}" aria-label="Début de pause">
+              <span class="fleche">{{ ico('fleche-d','ico-sm') }}</span>
+              <input type="time" name="pause_f" value="{{ p.f }}" aria-label="Fin de pause">
+              <button type="button" class="btn btn-icon btn-ghost" aria-label="Retirer cette pause"
+                      onclick="this.parentElement.remove()">{{ ico('croix','ico-sm') }}</button>
+            </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn btn-sm" style="margin-top:10px" onclick="ajouterPause()">
+            {{ ico('plus','ico-sm') }}Ajouter une pause
+          </button>
+        </div>
+
+        <div class="bloc">
+          <label for="km_jour">{{ ico('route','ico-sm') }} Kilomètres parcourus
+            <span class="hint">(facultatif)</span></label>
+          <input type="number" step="0.1" min="0" inputmode="decimal" name="km_jour"
+                 id="km_jour" placeholder="0" style="width:100%"
+                 value="{{ saisie.km_jour if saisie else '' }}">
+          <p class="hint" style="margin:7px 0 0">Le kilométrage commercial est renseigné
+             par l'administrateur.</p>
+        </div>
+
       </div>
-      <button type="button" class="btn btn-gris" style="margin-top:8px"
-              onclick="ajouterPause()">➕ Ajouter une pause</button>
     </div>
 
-    <div style="margin-top:18px">
-      <label style="font-weight:600">Kilomètres parcourus (facultatif)</label>
-      <input type="number" step="0.1" min="0" inputmode="decimal" name="km_jour"
-             id="km_jour" placeholder="0" style="width:100%;margin-top:4px"
-             value="{{ saisie.km_jour if saisie else '' }}">
-      <p class="sous" style="margin:6px 0 0">Le kilométrage commercial est renseigné par l'administrateur.</p>
-    </div>
-
-    <div style="margin-top:18px">
-      <button class="btn btn-rouge btn-valider" type="submit">💾 Valider ma journée</button>
+    <div class="submit-bar">
+      <button class="btn btn-primary btn-lg btn-block" type="submit">
+        {{ ico('check') }}Valider ma journée
+      </button>
     </div>
   </form>
 
   {% if histo %}
-  <div class="carte">
-    <div class="entete">Mes journées de ce mois</div>
-    <table class="grille" style="max-width:520px">
-      <thead><tr><th>Jour</th><th>Prise → Fin</th><th>Travaillé</th><th>Km jour</th></tr></thead>
-      <tbody>
-      {% for h in histo %}
-        <tr class="{{ 'weekend' if h.aujourdhui }}">
-          <td class="jour" style="text-transform:capitalize">{{ h.date }}{{ " (aujourd'hui)" if h.aujourdhui }}</td>
-          <td>{{ h.amp }}</td>
-          <td class="total">{{ h.travail }}</td>
-          <td>{{ h.km }}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    <p class="sous" style="margin-top:8px">Les journées passées ne sont plus modifiables.</p>
+  <div class="card" style="margin-top:18px">
+    <div class="card-head">
+      <span class="t">{{ ico('tableau') }}Mes journées de ce mois</span>
+    </div>
+    <div class="table-scroll">
+      <table class="tbl">
+        <thead><tr>
+          <th class="txt">Jour</th><th class="txt">Prise → Fin</th>
+          <th>Travaillé</th><th>Km jour</th>
+        </tr></thead>
+        <tbody>
+        {% for h in histo %}
+          <tr class="{{ 'weekend' if h.aujourdhui }}">
+            <td class="jour" style="text-transform:capitalize">{{ h.date }}{{ " (aujourd'hui)" if h.aujourdhui }}</td>
+            <td class="txt num">{{ h.amp }}</td>
+            <td class="total">{{ h.travail }}</td>
+            <td class="num">{{ h.km }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-foot">
+      <span class="hint">Les journées passées ne sont plus modifiables.</span>
+    </div>
   </div>
   {% endif %}
+
 </div>
 {% endif %}
 {% endblock %}
@@ -98,12 +143,15 @@ function ajouterPause(){
   const wrap = document.getElementById("pauses");
   const div = document.createElement("div");
   div.className = "pause-ligne";
-  div.innerHTML = '<input type="time" name="pause_d" aria-label="Début pause">'
-    + '<span>→</span>'
-    + '<input type="time" name="pause_f" aria-label="Fin pause">'
-    + '<button type="button" class="btn btn-gris btn-sm">✕</button>';
-  div.querySelector("button").onclick = ()=>div.remove();
+  div.innerHTML =
+      '<input type="time" name="pause_d" aria-label="Début de pause">'
+    + '<span class="fleche"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-fleche-d"/></svg></span>'
+    + '<input type="time" name="pause_f" aria-label="Fin de pause">'
+    + '<button type="button" class="btn btn-icon btn-ghost" aria-label="Retirer cette pause">'
+    + '<svg class="ico ico-sm" aria-hidden="true"><use href="#i-croix"/></svg></button>';
+  div.querySelector("button").onclick = () => div.remove();
   wrap.appendChild(div);
+  div.querySelector("input").focus();
 }
 </script>
 {% endblock %}
