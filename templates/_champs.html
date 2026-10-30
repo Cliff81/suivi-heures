@@ -1,0 +1,124 @@
+{% from "_icons.html" import ico %}
+{#
+  Champ « mot de passe » outillé : générer, afficher, copier.
+  Même composant pour la création d'un compte et pour le changement de mot de
+  passe d'un compte existant, afin que les deux se comportent pareil.
+#}
+
+{% macro champ_mdp(id, placeholder="", requis=false, bouton_generer=false) -%}
+<div class="pwd" data-pwd>
+  <input id="{{ id }}" type="password" name="password" data-pwd-champ
+         autocomplete="new-password" spellcheck="false"
+         placeholder="{{ placeholder }}"{% if requis %} required{% endif %}>
+  {% if not bouton_generer %}
+  <button type="button" class="btn btn-icon btn-ghost" data-pwd-generer
+          title="Générer un mot de passe" aria-label="Générer un mot de passe">
+    {{ ico('etincelles','ico-sm') }}</button>
+  {% endif %}
+  <button type="button" class="btn btn-icon btn-ghost" data-pwd-voir
+          title="Afficher le mot de passe" aria-label="Afficher le mot de passe">
+    {{ ico('oeil','ico-sm') }}</button>
+  <button type="button" class="btn btn-icon btn-ghost" data-pwd-copier
+          title="Copier le mot de passe" aria-label="Copier le mot de passe">
+    {{ ico('copier','ico-sm') }}</button>
+</div>
+{%- if bouton_generer %}
+<div class="pwd-outils">
+  <button type="button" class="btn btn-sm" data-pwd-generer>
+    {{ ico('etincelles','ico-sm') }}Générer un mot de passe
+  </button>
+  <span class="hint" data-pwd-note hidden>Notez-le ou copiez-le&nbsp;: il ne sera
+    plus affiché après la création.</span>
+</div>
+{%- endif %}
+{%- endmacro %}
+
+
+{% macro script_mdp() -%}
+<script>
+// --- Mots de passe : génération, affichage, copie ------------------------
+// Prononçables (syllabes consonne + voyelle) : un mot de passe généré ici est
+// souvent dicté de vive voix au salarié avant qu'il ne le change.
+const MDP_CONS = "bcdfghjklmnprstvz", MDP_VOY = "aeiou";
+
+function mdpHasard(max){
+  // Tirage uniforme : on rejette la queue qui créerait un biais de modulo.
+  const limite = 256 - (256 % max), octet = new Uint8Array(1);
+  do { crypto.getRandomValues(octet); } while (octet[0] >= limite);
+  return octet[0] % max;
+}
+function mdpSyllabe(){
+  return MDP_CONS[mdpHasard(MDP_CONS.length)] + MDP_VOY[mdpHasard(MDP_VOY.length)];
+}
+function mdpGenerer(){
+  const blocs = [];
+  for (let i = 0; i < 3; i++) blocs.push(mdpSyllabe() + mdpSyllabe());
+  blocs.push(String(mdpHasard(10)) + String(mdpHasard(10)));
+  return blocs.join("-");
+}
+
+function mdpIcone(bouton, nom){
+  bouton.querySelector("use").setAttribute("href", "#i-" + nom);
+}
+function mdpAfficher(groupe, visible){
+  const champ = groupe.querySelector("[data-pwd-champ]");
+  const bouton = groupe.querySelector("[data-pwd-voir]");
+  champ.type = visible ? "text" : "password";
+  mdpIcone(bouton, visible ? "oeil-barre" : "oeil");
+  const texte = (visible ? "Masquer" : "Afficher") + " le mot de passe";
+  bouton.title = texte;
+  bouton.setAttribute("aria-label", texte);
+}
+function mdpConfirmer(bouton, icone){
+  bouton.classList.add("fait");
+  mdpIcone(bouton, "check");
+  setTimeout(() => { bouton.classList.remove("fait"); mdpIcone(bouton, icone); }, 1600);
+}
+async function mdpCopier(groupe, bouton){
+  const champ = groupe.querySelector("[data-pwd-champ]");
+  if (!champ.value) { champ.focus(); return; }
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(champ.value);
+    } else {
+      // Sur le réseau local l'application est servie en http : l'API
+      // presse-papiers n'y est pas disponible, on repasse par la sélection.
+      const type = champ.type;
+      champ.type = "text";
+      champ.select(); champ.setSelectionRange(0, champ.value.length);
+      const ok = document.execCommand("copy");
+      champ.type = type;
+      if (!ok) throw new Error("copie refusée");
+    }
+    mdpConfirmer(bouton, "copier");
+  } catch (e) {
+    // Dernier recours : on montre le mot de passe, à l'utilisateur de le noter.
+    mdpAfficher(groupe, true);
+    champ.focus(); champ.select();
+  }
+}
+
+document.addEventListener("click", e => {
+  const bouton = e.target.closest("[data-pwd-generer],[data-pwd-voir],[data-pwd-copier]");
+  if (!bouton) return;
+  // Le bouton « Générer » en toutes lettres est placé sous le groupe.
+  const groupe = bouton.closest("[data-pwd]")
+              || bouton.closest(".field, li, form").querySelector("[data-pwd]");
+  if (!groupe) return;
+
+  if (bouton.hasAttribute("data-pwd-generer")) {
+    const champ = groupe.querySelector("[data-pwd-champ]");
+    champ.value = mdpGenerer();
+    mdpAfficher(groupe, true);          // généré = montré, sinon il est perdu
+    // La note reste dans le champ courant : une ligne de la liste n'en a pas.
+    const note = (bouton.closest(".field") || groupe.parentElement)
+                   .querySelector("[data-pwd-note]");
+    if (note) note.hidden = false;
+  } else if (bouton.hasAttribute("data-pwd-voir")) {
+    mdpAfficher(groupe, groupe.querySelector("[data-pwd-champ]").type === "password");
+  } else {
+    mdpCopier(groupe, bouton);
+  }
+});
+</script>
+{%- endmacro %}

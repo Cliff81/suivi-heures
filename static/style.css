@@ -253,6 +253,37 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);margin:0}
   grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
 }
 
+/* Champ mot de passe outillé (générer / afficher / copier) */
+.pwd{
+  display:flex;align-items:center;gap:1px;
+  background:var(--surface);
+  border:1px solid var(--line-2);border-radius:var(--r-1);
+  padding-right:3px;
+  transition:border-color .12s,box-shadow .12s;
+}
+.pwd:hover{border-color:#AEBCCB}
+.pwd:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(27,95,168,.16)}
+.pwd input{
+  flex:1 1 auto;width:auto;min-width:0;
+  border:0;background:transparent;padding:8px 10px;
+  font-variant-numeric:tabular-nums;letter-spacing:.015em;
+}
+.pwd input:hover,.pwd input:focus{border:0;box-shadow:none;outline:none}
+.pwd .btn{width:30px;height:30px;padding:6px;color:var(--ink-3)}
+.pwd .btn:hover{color:var(--ink)}
+.pwd .btn.fait{color:var(--ok)}
+
+.pwd-outils{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px;
+}
+
+/* Carte « Créer un compte » : deux colonnes, le mot de passe sous l'identifiant */
+.form-compte{display:grid;gap:14px 20px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.form-compte .pleine{grid-column:1/-1}
+.form-compte .check{min-height:37px}
+/* Dans une ligne de la liste, le champ garde une largeur raisonnable. */
+.rows form .pwd{flex:0 1 240px}
+
 /* Barre de filtres */
 .toolbar{
   background:var(--surface);border:1px solid var(--line);
@@ -706,11 +737,14 @@ table.releve-tab tfoot td{
   .bandeau .gros{font-size:22px}
   .bandeau .cotes{gap:18px}
 
+  .form-compte{grid-template-columns:1fr}
+
   .rows li{align-items:stretch;flex-direction:column}
   .rows .outils{margin-left:0}
   .rows form{width:100%}
-  .rows form input[type=text],.rows form input[type=password],.rows form select{
+  .rows form input[type=text],.rows form select{
     flex:1 1 110px;min-width:0;width:auto}
+  .rows form .pwd{flex:1 1 170px;min-width:0}
 
   .releve{padding:18px 14px}
   .semaines-grille{grid-template-columns:1fr}

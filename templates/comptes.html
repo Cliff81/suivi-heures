@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_icons.html" import ico %}
+{% from "_champs.html" import champ_mdp, script_mdp %}
 {% block title %}Comptes — Suivi des heures{% endblock %}
 {% block content %}
 
@@ -45,8 +46,7 @@
       <form method="post">
         <input type="hidden" name="action" value="motdepasse">
         <input type="hidden" name="login" value="{{ u.login }}">
-        <input type="password" name="password" placeholder="Nouveau mot de passe"
-               aria-label="Nouveau mot de passe de {{ u.login }}" style="width:170px" required>
+        {{ champ_mdp('mdp-' ~ u.id, placeholder="Nouveau mot de passe", requis=true) }}
         <button class="btn btn-sm" type="submit">{{ ico('cle','ico-sm') }}Changer</button>
       </form>
 
@@ -65,31 +65,73 @@
 
 <div class="card" style="margin-top:18px">
   <div class="card-head"><span class="t">{{ ico('plus') }}Créer un compte</span></div>
-  <form method="post">
+  <form method="post" id="creer-compte">
     <div class="card-body">
       <input type="hidden" name="action" value="ajouter">
-      <div class="form-grid">
-        <div class="field"><label for="c-login">Identifiant</label>
-          <input id="c-login" type="text" name="login" required></div>
-        <div class="field"><label for="c-pwd">Mot de passe</label>
-          <input id="c-pwd" type="password" name="password" required></div>
-        <div class="field"><label for="c-sal">Salarié rattaché</label>
+
+      <div class="form-compte">
+        <div class="field">
+          <label for="c-sal">Salarié rattaché</label>
           <select id="c-sal" name="salarie_id">
             <option value="">— Aucun —</option>
             {% for s in sals %}
               <option value="{{ s['id'] }}">{{ noms[s['id']] }}</option>
             {% endfor %}
-          </select></div>
-        <div class="field"><label>Rôle</label>
-          <label class="check"><input type="checkbox" name="admin"> Administrateur</label></div>
+          </select>
+          <span class="hint">Un compte sans salarié ne peut pas saisir de journée.</span>
+        </div>
+
+        <div class="field">
+          <label for="c-login">Identifiant</label>
+          <input id="c-login" type="text" name="login" required autocomplete="off"
+                 spellcheck="false">
+          <span class="hint">Proposé d'après le salarié choisi, modifiable.</span>
+        </div>
+
+        <div class="field">
+          <label for="c-pwd">Mot de passe</label>
+          {{ champ_mdp('c-pwd', requis=true, bouton_generer=true) }}
+        </div>
+
+        <div class="field">
+          <label>Rôle</label>
+          <label class="check"><input type="checkbox" name="admin"> Administrateur</label>
+          <span class="hint">Un administrateur voit tous les salariés et tous les onglets.</span>
+        </div>
       </div>
-      <p class="hint" style="margin:14px 0 0">Pour qu'un salarié soit aussi
-         administrateur, créez son compte en cochant « Administrateur » et en le
-         rattachant à sa fiche salarié.</p>
     </div>
     <div class="card-foot">
       <button class="btn btn-primary" type="submit">{{ ico('plus') }}Créer le compte</button>
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ script_mdp() }}
+<script>
+// Identifiant proposé d'après le salarié choisi : initiale du prénom + nom
+// (« MARCELLE BEAUFILS » -> « mbeaufils »). On ne touche jamais à un
+// identifiant que l'administrateur a saisi lui-même.
+(function(){
+  const sal = document.getElementById("c-sal");
+  const login = document.getElementById("c-login");
+  if(!sal || !login) return;
+  let propose = "";
+
+  function identifiant(nom){
+    const mots = nom.normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase().replace(/[^a-z]+/g, " ").trim().split(" ").filter(Boolean);
+    if(!mots.length) return "";
+    return mots.length > 1 ? mots[0][0] + mots[mots.length - 1] : mots[0];
+  }
+
+  sal.addEventListener("change", () => {
+    if(login.value !== "" && login.value !== propose) return;
+    const nom = sal.selectedOptions[0] ? sal.selectedOptions[0].text : "";
+    propose = sal.value ? identifiant(nom) : "";
+    login.value = propose;
+  });
+})();
+</script>
 {% endblock %}
