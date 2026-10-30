@@ -75,7 +75,7 @@
 {% macro alertes(res) -%}
 {% for a in res.alertes %}
   <div class="flash {{ 'error' if a.niveau == 'ko' else '' }}"
-       {% if a.niveau != 'ko' %}style="background:var(--warn-soft);border-color:#E7CE9B;color:var(--warn)"{% endif %}>
+       {% if a.niveau != 'ko' %}style="background:var(--warn-soft);border-color:var(--warn-bord);color:var(--warn)"{% endif %}>
     {{ ico('alerte') }}<span>{{ a.texte }}</span>
   </div>
 {% endfor %}

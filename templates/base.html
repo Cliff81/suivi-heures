@@ -4,7 +4,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#1B5FA8">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161F2C" media="(prefers-color-scheme: dark)">
+  <script>
+    /* Posé avant le premier rendu : sans cela la page clignote en clair
+       avant de passer en sombre. Volontairement synchrone et minuscule. */
+    (function () {
+      try {
+        var t = localStorage.getItem("sc_theme");
+        if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    })();
+  </script>
   <title>{% block title %}Suivi des heures{% endblock %}</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231B5FA8'/%3E%3Cg fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 20V12a2 2 0 0 1 2-2h8v10'/%3E%3Cpath d='M16 14h3.2a2 2 0 0 1 1.7.9L23 18v2h-2'/%3E%3Ccircle cx='10.5' cy='20.5' r='1.8'/%3E%3Ccircle cx='18.5' cy='20.5' r='1.8'/%3E%3Cpath d='M11 13v3M9.5 14.5h3'/%3E%3C/g%3E%3C/svg%3E">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -29,6 +40,8 @@
         {{ ico('personne', 'ico-sm') }}<span class="nom">{{ app_user }}</span>
         {% if not app_is_admin %}<span class="badge badge-user">Salarié</span>{% endif %}
       </a>
+      <button type="button" class="btn btn-sm btn-icon btn-ghost" id="theme"
+              title="Thème" aria-label="Changer de thème">{{ ico('auto','ico-sm') }}</button>
       <a class="btn btn-sm btn-ghost" href="{{ url_for('logout') }}">
         {{ ico('sortie', 'ico-sm') }}Déconnexion
       </a>
@@ -65,6 +78,35 @@
 </main>
 {% endblock %}
 
+<script>
+/* Bascule de thème : automatique (le système décide) → clair → sombre. */
+(function () {
+  const bouton = document.getElementById("theme");
+  if (!bouton) return;
+  const SUITE = { auto: "light", light: "dark", dark: "auto" };
+  const ICONE = { auto: "auto", light: "soleil", dark: "lune" };
+  const NOM = { auto: "automatique", light: "clair", dark: "sombre" };
+
+  function lire() {
+    try { return localStorage.getItem("sc_theme") || "auto"; }
+    catch (e) { return "auto"; }
+  }
+  function poser(t) {
+    const html = document.documentElement;
+    if (t === "auto") delete html.dataset.theme;
+    else html.dataset.theme = t;
+    try {
+      if (t === "auto") localStorage.removeItem("sc_theme");
+      else localStorage.setItem("sc_theme", t);
+    } catch (e) {}
+    bouton.querySelector("use").setAttribute("href", "#i-" + ICONE[t]);
+    bouton.title = "Thème : " + NOM[t];
+    bouton.setAttribute("aria-label", "Thème : " + NOM[t] + ", changer");
+  }
+  poser(lire());
+  bouton.addEventListener("click", () => poser(SUITE[lire()]));
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
