@@ -49,6 +49,32 @@ La base en ligne démarre vide. Pour repartir de tes données existantes :
 
 ---
 
+## Mettre à jour une base existante
+
+Le schéma se met à jour tout seul à la première ouverture : il n'y a aucune
+commande de migration à lancer, et **aucune saisie n'est touchée**.
+
+Sur une base antérieure à la planification de tournées, la mise à jour est
+**purement additive** :
+
+- sept tables nouvelles (`clients`, `journees`, `journee_salaries`,
+  `courses`, `optimisations`, `geo_cache`, `trajet_cache`) ;
+- trois colonnes nouvelles sur `salaries` (`adresse`, `telephone`, `notes`),
+  toutes facultatives ;
+- `jours`, `payees`, `conges_pris`, `jour_pauses`, `users` : inchangées, au
+  contenu près.
+
+Deux points à connaître :
+
+- **L'application bureau continue de fonctionner** sur la même base, en
+  lecture comme en écriture : elle nomme ses colonnes et ignore les nouvelles.
+- **Le retour en arrière reste possible.** Une version antérieure du serveur
+  rouvre la base migrée sans difficulté ; les tables de planification restent
+  en place sans être lues.
+
+Prenez tout de même une copie de `heures.db` avant la première mise à jour :
+c'est gratuit et cela rend toute erreur réversible.
+
 ## Variables d'environnement utilisées
 | Variable | Rôle | Exemple |
 |---|---|---|

@@ -286,7 +286,14 @@ class DB:
             )""")
         scols = {r["name"] for r in c.execute("PRAGMA table_info(journee_salaries)")}
         if "minutes_stationnement" in scols:
-            c.execute("ALTER TABLE journee_salaries DROP COLUMN minutes_stationnement")
+            # DROP COLUMN demande SQLite 3.35. Sur une version plus ancienne,
+            # la colonne reste en place sans etre lue : c'est sans gravite,
+            # et mieux vaut cela qu'un demarrage qui echoue.
+            try:
+                c.execute("ALTER TABLE journee_salaries "
+                          "DROP COLUMN minutes_stationnement")
+            except sqlite3.OperationalError:
+                pass
         c.execute("""
             CREATE TABLE IF NOT EXISTS journee_salaries (
                 date TEXT NOT NULL,
