@@ -6,7 +6,9 @@
 <div class="page-head">
   <div class="titres">
     <h1>Salariés</h1>
-    <p class="lede">Durée hebdomadaire au format HH:MM (par exemple 39:00).</p>
+    <p class="lede">Durée hebdomadaire au format HH:MM (par exemple 39:00).
+       L'adresse de départ est celle d'où part le véhicule le matin : elle sert
+       au calcul des tournées.</p>
   </div>
 </div>
 
@@ -20,7 +22,7 @@
       <span class="avatar">{{ ico('personne','ico-sm') }}</span>
       <span>
         <span class="principal">{{ s.nom_complet }}</span><br>
-        <span class="meta">{{ s.duree }} par semaine</span>
+        <span class="meta">{{ s.duree }} par semaine{% if s.adresse %} · {{ s.adresse }}{% endif %}</span>
       </span>
     </span>
 
@@ -34,6 +36,9 @@
                aria-label="Nom" style="width:150px">
         <input type="text" name="duree" value="{{ s.duree }}" placeholder="39:00"
                aria-label="Durée hebdomadaire" style="width:82px">
+        <input type="text" name="adresse" value="{{ s.adresse }}"
+               placeholder="Adresse de départ (domicile)"
+               aria-label="Adresse de départ de {{ s.nom_complet }}" style="width:240px">
         <button class="btn btn-sm" type="submit">{{ ico('crayon','ico-sm') }}Modifier</button>
       </form>
 

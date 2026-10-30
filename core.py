@@ -33,6 +33,18 @@ MAX_SEMAINE = 48 * 60          # 48 h max sur une semaine
 MAX_MOY_12 = 44 * 60          # 44 h en moyenne sur 12 semaines consecutives
 MAX_AMPLITUDE = 12 * 60        # 12 h : amplitude journaliere max (taxis)
 
+# --- Planification de tournee -------------------------------------------
+# Temps d'installation par defaut selon le type de transport (minutes) :
+# duree pour installer la personne dans le vehicule, appliquee aussi bien a
+# la prise en charge qu'a la depose.
+TYPES_TRANSPORT = [
+    ("valide", "Valide"),
+    ("fauteuil", "Fauteuil roulant"),
+    ("brancard", "Brancard"),
+]
+INSTALLATION_DEFAUT = {"valide": 5, "fauteuil": 10, "brancard": 15}
+STATIONNEMENT_DEFAUT = 3        # minutes pour se garer, a chaque arret
+
 SALARIES_DEFAUT = [
     "PATRICK LLOPIS",
     "GEORGIA LAROCHE",
@@ -99,6 +111,20 @@ def fmt_km(v):
     if v is None:
         return ""
     return f"{v:g}"
+
+
+def cle_adresse(adresse):
+    """Cle de cache d'une adresse : minuscules, espaces reduits.
+    Deux saisies qui ne different que par la casse ou les espaces ne
+    declenchent qu'un seul appel au service de cartographie."""
+    return " ".join(str(adresse or "").lower().split())
+
+
+def nom_client(c):
+    """Affichage 'PRENOM NOM' a partir d'une ligne client."""
+    prenom = (c["prenom"] or "").strip()
+    nom = (c["nom"] or "").strip()
+    return f"{prenom} {nom}".strip()
 
 
 def nom_complet(s):
@@ -205,6 +231,70 @@ class DB:
                 debut INTEGER, fin INTEGER,
                 PRIMARY KEY (salarie_id, date, idx)
             )""")
+        # --- Planification de tournee (tables propres a la version web :
+        # l'application bureau les ignore, elle ne les lit jamais) ---
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS clients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL,
+                prenom TEXT DEFAULT '',
+                adresse TEXT DEFAULT '',
+                telephone TEXT DEFAULT '',
+                type_transport TEXT DEFAULT 'valide',
+                minutes_installation INTEGER,
+                notes TEXT DEFAULT '',
+                actif INTEGER DEFAULT 1
+            )""")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS tournees (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                salarie_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                heure_depart INTEGER,
+                depart_adresse TEXT DEFAULT '',
+                minutes_stationnement INTEGER,
+                pause_minutes INTEGER DEFAULT 0,
+                pause_apres INTEGER,
+                retour_depart INTEGER DEFAULT 1,
+                notes TEXT DEFAULT '',
+                UNIQUE(salarie_id, date)
+            )""")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS tournee_courses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tournee_id INTEGER NOT NULL,
+                position INTEGER NOT NULL,
+                client_id INTEGER,
+                prise_adresse TEXT DEFAULT '',
+                depose_adresse TEXT DEFAULT '',
+                heure_rdv INTEGER,
+                minutes_installation INTEGER,
+                minutes_stationnement INTEGER,
+                notes TEXT DEFAULT ''
+            )""")
+        # Coordonnees et durees deja connues : on n'interroge le service de
+        # cartographie qu'une fois par adresse et par trajet.
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS geo_cache (
+                adresse TEXT PRIMARY KEY,
+                lat REAL, lon REAL,
+                libelle TEXT,
+                maj TEXT
+            )""")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS trajet_cache (
+                origine TEXT NOT NULL,
+                destination TEXT NOT NULL,
+                minutes INTEGER,
+                km REAL,
+                source TEXT DEFAULT 'carto',
+                maj TEXT,
+                PRIMARY KEY (origine, destination)
+            )""")
+        # Adresse de depart du salarie (il part de chez lui avec le vehicule).
+        scols = {r["name"] for r in c.execute("PRAGMA table_info(salaries)")}
+        if "adresse" not in scols:
+            c.execute("ALTER TABLE salaries ADD COLUMN adresse TEXT DEFAULT ''")
         self.conn.commit()
 
     def _init_salaries(self):
@@ -284,6 +374,169 @@ class DB:
             """, (sid, date_iso, vals["amp_d"], vals["amp_f"], vals["pause_d"],
                   vals["pause_f"], vals["km_jour"], vals["km_com"],
                   vals["km_vide"]))
+
+    # --- clients (planification de tournee) ---
+    def clients(self, actifs_seuls=True):
+        sql = "SELECT * FROM clients"
+        if actifs_seuls:
+            sql += " WHERE actif=1"
+        sql += " ORDER BY nom, prenom"
+        return self.conn.execute(sql).fetchall()
+
+    def client(self, cid):
+        return self.conn.execute(
+            "SELECT * FROM clients WHERE id=?", (cid,)).fetchone()
+
+    def ajouter_client(self, **v):
+        cur = self.conn.execute(
+            "INSERT INTO clients (nom, prenom, adresse, telephone, "
+            "type_transport, minutes_installation, notes) VALUES (?,?,?,?,?,?,?)",
+            (v["nom"], v.get("prenom", ""), v.get("adresse", ""),
+             v.get("telephone", ""), v.get("type_transport", "valide"),
+             v.get("minutes_installation"), v.get("notes", "")))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def modifier_client(self, cid, **v):
+        self.conn.execute(
+            "UPDATE clients SET nom=?, prenom=?, adresse=?, telephone=?, "
+            "type_transport=?, minutes_installation=?, notes=?, actif=? WHERE id=?",
+            (v["nom"], v.get("prenom", ""), v.get("adresse", ""),
+             v.get("telephone", ""), v.get("type_transport", "valide"),
+             v.get("minutes_installation"), v.get("notes", ""),
+             1 if v.get("actif", 1) else 0, cid))
+        self.conn.commit()
+
+    def supprimer_client(self, cid):
+        # Les courses deja planifiees gardent leur adresse : on detache
+        # seulement la fiche, pour ne pas trouer une tournee passee.
+        self.conn.execute(
+            "UPDATE tournee_courses SET client_id=NULL WHERE client_id=?", (cid,))
+        self.conn.execute("DELETE FROM clients WHERE id=?", (cid,))
+        self.conn.commit()
+
+    def set_salarie_adresse(self, sid, adresse):
+        self.conn.execute("UPDATE salaries SET adresse=? WHERE id=?",
+                          (adresse, sid))
+        self.conn.commit()
+
+    # --- tournees ---
+    def tournee(self, tid):
+        return self.conn.execute(
+            "SELECT * FROM tournees WHERE id=?", (tid,)).fetchone()
+
+    def tournee_du_jour(self, sid, date_iso):
+        return self.conn.execute(
+            "SELECT * FROM tournees WHERE salarie_id=? AND date=?",
+            (sid, date_iso)).fetchone()
+
+    def tournees_de_la_date(self, date_iso):
+        return self.conn.execute(
+            "SELECT * FROM tournees WHERE date=? ORDER BY id", (date_iso,)).fetchall()
+
+    def creer_tournee(self, sid, date_iso, heure_depart=None):
+        cur = self.conn.execute(
+            "INSERT INTO tournees (salarie_id, date, heure_depart, "
+            "minutes_stationnement) VALUES (?,?,?,?)",
+            (sid, date_iso, heure_depart, STATIONNEMENT_DEFAUT))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def modifier_tournee(self, tid, **v):
+        self.conn.execute(
+            "UPDATE tournees SET heure_depart=?, depart_adresse=?, "
+            "minutes_stationnement=?, pause_minutes=?, pause_apres=?, "
+            "retour_depart=?, notes=? WHERE id=?",
+            (v.get("heure_depart"), v.get("depart_adresse", ""),
+             v.get("minutes_stationnement"), v.get("pause_minutes") or 0,
+             v.get("pause_apres"), 1 if v.get("retour_depart") else 0,
+             v.get("notes", ""), tid))
+        self.conn.commit()
+
+    def supprimer_tournee(self, tid):
+        self.conn.execute("DELETE FROM tournee_courses WHERE tournee_id=?", (tid,))
+        self.conn.execute("DELETE FROM tournees WHERE id=?", (tid,))
+        self.conn.commit()
+
+    # --- courses d'une tournee ---
+    def courses(self, tid):
+        return self.conn.execute(
+            "SELECT * FROM tournee_courses WHERE tournee_id=? "
+            "ORDER BY position, id", (tid,)).fetchall()
+
+    def ajouter_course(self, tid, client_id=None):
+        pos = self.conn.execute(
+            "SELECT COALESCE(MAX(position),-1)+1 FROM tournee_courses "
+            "WHERE tournee_id=?", (tid,)).fetchone()[0]
+        cur = self.conn.execute(
+            "INSERT INTO tournee_courses (tournee_id, position, client_id) "
+            "VALUES (?,?,?)", (tid, pos, client_id))
+        self.conn.commit()
+        return cur.lastrowid
+
+    def modifier_course(self, cid, **v):
+        self.conn.execute(
+            "UPDATE tournee_courses SET client_id=?, prise_adresse=?, "
+            "depose_adresse=?, heure_rdv=?, minutes_installation=?, "
+            "minutes_stationnement=?, notes=? WHERE id=?",
+            (v.get("client_id"), v.get("prise_adresse", ""),
+             v.get("depose_adresse", ""), v.get("heure_rdv"),
+             v.get("minutes_installation"), v.get("minutes_stationnement"),
+             v.get("notes", ""), cid))
+        self.conn.commit()
+
+    def supprimer_course(self, cid):
+        self.conn.execute("DELETE FROM tournee_courses WHERE id=?", (cid,))
+        self.conn.commit()
+
+    def deplacer_course(self, cid, sens):
+        """Monte (-1) ou descend (+1) une course dans l'ordre de passage."""
+        r = self.conn.execute(
+            "SELECT tournee_id, position FROM tournee_courses WHERE id=?",
+            (cid,)).fetchone()
+        if r is None:
+            return
+        # On renumerote d'abord : les positions peuvent etre trouees.
+        ordre = [x["id"] for x in self.courses(r["tournee_id"])]
+        i = ordre.index(cid)
+        j = i + sens
+        if not 0 <= j < len(ordre):
+            return
+        ordre[i], ordre[j] = ordre[j], ordre[i]
+        for pos, oid in enumerate(ordre):
+            self.conn.execute(
+                "UPDATE tournee_courses SET position=? WHERE id=?", (pos, oid))
+        self.conn.commit()
+
+    # --- cache cartographie ---
+    def geo_lire(self, adresse):
+        return self.conn.execute(
+            "SELECT * FROM geo_cache WHERE adresse=?",
+            (cle_adresse(adresse),)).fetchone()
+
+    def geo_ecrire(self, adresse, lat, lon, libelle):
+        self.conn.execute(
+            "INSERT INTO geo_cache (adresse, lat, lon, libelle, maj) "
+            "VALUES (?,?,?,?,datetime('now')) "
+            "ON CONFLICT(adresse) DO UPDATE SET lat=excluded.lat, "
+            "lon=excluded.lon, libelle=excluded.libelle, maj=excluded.maj",
+            (cle_adresse(adresse), lat, lon, libelle))
+        self.conn.commit()
+
+    def trajet_lire(self, origine, destination):
+        return self.conn.execute(
+            "SELECT * FROM trajet_cache WHERE origine=? AND destination=?",
+            (cle_adresse(origine), cle_adresse(destination))).fetchone()
+
+    def trajet_ecrire(self, origine, destination, minutes, km=None, source="carto"):
+        self.conn.execute(
+            "INSERT INTO trajet_cache (origine, destination, minutes, km, "
+            "source, maj) VALUES (?,?,?,?,?,datetime('now')) "
+            "ON CONFLICT(origine, destination) DO UPDATE SET "
+            "minutes=excluded.minutes, km=excluded.km, source=excluded.source, "
+            "maj=excluded.maj",
+            (cle_adresse(origine), cle_adresse(destination), minutes, km, source))
+        self.conn.commit()
 
     def commit(self):
         self.conn.commit()

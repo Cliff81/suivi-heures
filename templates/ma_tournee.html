@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ico %}
+{% from "_deroule.html" import deroule, totaux, alertes with context %}
+{% block title %}Ma tournée — Suivi des heures{% endblock %}
+{% block content %}
+<div class="espace">
+
+  <div class="page-head">
+    <div class="titres">
+      <h1>Ma tournée</h1>
+      <p class="lede" style="margin-top:8px">
+        <span class="jour-chip">{{ ico('calendrier','ico-sm') }}{{ jour }}</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <a class="btn btn-sm btn-icon" href="{{ url_for('ma_tournee', date=veille) }}"
+       title="Jour précédent" aria-label="Jour précédent">{{ ico('fleche-g','ico-sm') }}</a>
+    <div class="field" style="flex:1">
+      <label for="f-date">Jour</label>
+      <input id="f-date" type="date" value="{{ date_iso }}"
+             onchange="location.href='{{ url_for('ma_tournee') }}?date='+this.value">
+    </div>
+    <a class="btn btn-sm btn-icon" href="{{ url_for('ma_tournee', date=lendemain) }}"
+       title="Jour suivant" aria-label="Jour suivant">{{ ico('fleche-d','ico-sm') }}</a>
+  </div>
+
+  {% if not sal %}
+    <div class="card"><div class="card-body">
+      <p class="lede" style="margin:0">Votre compte n'est rattaché à aucun salarié.
+         Contactez un administrateur.</p>
+    </div></div>
+  {% elif not t or not res.etapes or res.etapes|length <= 1 %}
+    <p class="vide">Aucune tournée prévue ce jour-là.</p>
+  {% else %}
+
+    {{ alertes(res) }}
+
+    <div class="card">
+      <div class="card-head">
+        <span class="t">{{ ico('volant') }}Départ {{ fmt_hm(res.totaux.debut) }}</span>
+        <span class="sub spacer">fin prévue {{ fmt_hm(res.totaux.fin) }}</span>
+      </div>
+      <div class="card-body">
+        {{ deroule(res) }}
+      </div>
+      {{ totaux(res) }}
+    </div>
+
+    {% if t['notes'] %}
+    <div class="card">
+      <div class="card-head"><span class="t">{{ ico('info') }}Consignes</span></div>
+      <div class="card-body"><p style="margin:0">{{ t['notes'] }}</p></div>
+    </div>
+    {% endif %}
+
+    <p class="hint">Horaires prévisionnels : ils ne remplacent pas la saisie de
+       vos heures réelles dans « Ma journée ».</p>
+  {% endif %}
+</div>
+{% endblock %}

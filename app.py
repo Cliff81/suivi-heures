@@ -21,8 +21,12 @@ from flask import (Flask, g, session, request, redirect, url_for,
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import core
+import carto
+import tournee as plan
 from core import (DB, DB_PATH, MOIS_NOMS, JOURS_NOMS, SEUIL_ACCORD,
-                  MAX_JOUR, MAX_SEMAINE, nom_complet, fmt_hm, fmt_hm_signe,
+                  MAX_JOUR, MAX_SEMAINE, TYPES_TRANSPORT, INSTALLATION_DEFAUT,
+                  STATIONNEMENT_DEFAUT, nom_complet, nom_client,
+                  fmt_hm, fmt_hm_signe,
                   fmt_centieme, fmt_km, parse_heure, heures_travaillees,
                   totaux_semaine, totaux_mois, semaines_du_mois,
                   verifier_conformite)
@@ -105,7 +109,8 @@ def admin_required(view):
 def _inject():
     return dict(app_user=session.get("user"),
                 app_is_admin=session.get("is_admin"),
-                MOIS_NOMS=MOIS_NOMS, annee_courante=datetime.date.today().year)
+                MOIS_NOMS=MOIS_NOMS, annee_courante=datetime.date.today().year,
+                fmt_hm=fmt_hm)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -638,6 +643,7 @@ def salaries():
             duree = parse_heure(request.form.get("duree", "")) or core.DUREE_HEBDO_DEFAUT
             db.modifier_salarie(sid, request.form.get("nom", "").strip(),
                                 request.form.get("prenom", "").strip(), duree)
+            db.set_salarie_adresse(sid, request.form.get("adresse", "").strip())
             flash("Salarié modifié.", "ok")
         elif action == "supprimer":
             db.supprimer_salarie(int(request.form["sid"]))
@@ -645,7 +651,8 @@ def salaries():
         return redirect(url_for("salaries"))
 
     sals = [{"id": s["id"], "nom": s["nom"], "prenom": s["prenom"] or "",
-             "nom_complet": nom_complet(s), "duree": fmt_hm(db.duree_hebdo(s["id"]))}
+             "nom_complet": nom_complet(s), "adresse": s["adresse"] or "",
+             "duree": fmt_hm(db.duree_hebdo(s["id"]))}
             for s in db.salaries()]
     return render_template("salaries.html", sals=sals)
 
@@ -872,6 +879,278 @@ def export_excel():
                      download_name=f"heures_{annee}.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument."
                               "spreadsheetml.sheet")
+
+
+# --------------------------------------------------------------------------
+# Planification de tournee
+# --------------------------------------------------------------------------
+def _mn(txt):
+    """Champ horaire tolerant : '08:30', '8h30', '' -> minutes ou None."""
+    try:
+        return parse_heure(txt)
+    except ValueError:
+        return None
+
+
+def _ent(txt):
+    """Champ entier tolerant : '' ou n'importe quoi -> None."""
+    s = str(txt or "").strip()
+    if s == "":
+        return None
+    try:
+        return max(0, int(float(s.replace(",", "."))))
+    except ValueError:
+        return None
+
+
+def _date_param(nom="date"):
+    v = (request.args.get(nom) or request.form.get(nom) or "").strip()
+    try:
+        return datetime.date.fromisoformat(v).isoformat()
+    except ValueError:
+        return datetime.date.today().isoformat()
+
+
+def _installation(course, client):
+    """Temps d'installation retenu : celui de la course, sinon celui de la
+    fiche client, sinon le defaut du type de transport."""
+    if course["minutes_installation"] is not None:
+        return course["minutes_installation"]
+    if client is not None and client["minutes_installation"] is not None:
+        return client["minutes_installation"]
+    type_t = client["type_transport"] if client is not None else "valide"
+    return INSTALLATION_DEFAUT.get(type_t, 5)
+
+
+def _preparer(db, t):
+    """Resout les adresses et les durees, puis deroule la tournee."""
+    sal = db.salarie(t["salarie_id"])
+    depart = (t["depart_adresse"] or "").strip()
+    if not depart and sal is not None:
+        depart = (sal["adresse"] or "").strip()
+
+    lignes, courses = [], []
+    for c in db.courses(t["id"]):
+        cl = db.client(c["client_id"]) if c["client_id"] else None
+        prise = (c["prise_adresse"] or "").strip()
+        if not prise and cl is not None:
+            prise = (cl["adresse"] or "").strip()
+        libelle = nom_client(cl) if cl is not None else "Course"
+        ins = _installation(c, cl)
+        lignes.append({
+            "id": c["id"], "client_id": c["client_id"], "libelle": libelle,
+            "prise_adresse": c["prise_adresse"] or "",
+            "prise_effective": prise,
+            "depose_adresse": c["depose_adresse"] or "",
+            "heure_rdv": fmt_hm(c["heure_rdv"]) if c["heure_rdv"] is not None else "",
+            "minutes_installation": c["minutes_installation"],
+            "minutes_stationnement": c["minutes_stationnement"],
+            "installation_retenue": ins,
+            "notes": c["notes"] or "",
+            "domicile": cl is not None and not (c["prise_adresse"] or "").strip(),
+        })
+        courses.append({
+            "libelle": libelle, "prise": prise,
+            "depose": (c["depose_adresse"] or "").strip(),
+            "rdv": c["heure_rdv"], "installation": ins,
+            "stationnement": c["minutes_stationnement"],
+        })
+
+    budget = carto.Budget()
+    resultat = plan.planifier(
+        depart_adresse=depart,
+        heure_depart=t["heure_depart"],
+        courses=courses,
+        stationnement_defaut=(t["minutes_stationnement"]
+                              if t["minutes_stationnement"] is not None
+                              else STATIONNEMENT_DEFAUT),
+        pause_minutes=t["pause_minutes"] or 0,
+        pause_apres=t["pause_apres"],
+        retour_depart=bool(t["retour_depart"]),
+        duree=lambda a, b: carto.duree_trajet(db, a, b, budget),
+    )
+    return depart, lignes, resultat
+
+
+@app.route("/clients", methods=["GET", "POST"])
+@admin_required
+def clients():
+    db = get_db()
+    if request.method == "POST":
+        action = request.form.get("action")
+        champs = dict(
+            nom=request.form.get("nom", "").strip().upper(),
+            prenom=request.form.get("prenom", "").strip(),
+            adresse=request.form.get("adresse", "").strip(),
+            telephone=request.form.get("telephone", "").strip(),
+            type_transport=request.form.get("type_transport", "valide"),
+            minutes_installation=_ent(request.form.get("minutes_installation")),
+            notes=request.form.get("notes", "").strip(),
+            actif=1 if request.form.get("actif") else 0,
+        )
+        if action == "ajouter":
+            if champs["nom"]:
+                db.ajouter_client(**champs)
+                flash("Client ajouté.", "ok")
+            else:
+                flash("Le nom est obligatoire.", "error")
+        elif action == "modifier":
+            db.modifier_client(int(request.form["cid"]), **champs)
+            flash("Client modifié.", "ok")
+        elif action == "supprimer":
+            db.supprimer_client(int(request.form["cid"]))
+            flash("Client supprimé. Les tournées passées gardent leurs adresses.", "ok")
+        return redirect(url_for("clients"))
+
+    cls = []
+    for c in db.clients(actifs_seuls=False):
+        cls.append({
+            "id": c["id"], "nom": c["nom"], "prenom": c["prenom"] or "",
+            "nom_complet": nom_client(c), "adresse": c["adresse"] or "",
+            "telephone": c["telephone"] or "",
+            "type_transport": c["type_transport"] or "valide",
+            "minutes_installation": c["minutes_installation"],
+            "installation_retenue": _installation(
+                {"minutes_installation": None}, c),
+            "notes": c["notes"] or "", "actif": bool(c["actif"]),
+        })
+    return render_template("clients.html", clients=cls,
+                           types=TYPES_TRANSPORT,
+                           defauts=INSTALLATION_DEFAUT)
+
+
+@app.route("/tournees", methods=["GET", "POST"])
+@admin_required
+def tournees():
+    db = get_db()
+    if request.method == "POST":
+        date_iso = _date_param()
+        action = request.form.get("action")
+        if action == "creer":
+            sid = int(request.form.get("sid") or 0)
+            if not sid:
+                flash("Choisissez un salarié.", "error")
+                return redirect(url_for("tournees", date=date_iso))
+            deja = db.tournee_du_jour(sid, date_iso)
+            if deja is not None:
+                return redirect(url_for("tournee_fiche", tid=deja["id"]))
+            tid = db.creer_tournee(sid, date_iso, _mn(request.form.get("heure_depart")))
+            return redirect(url_for("tournee_fiche", tid=tid))
+        if action == "supprimer":
+            db.supprimer_tournee(int(request.form["tid"]))
+            flash("Tournée supprimée.", "ok")
+        return redirect(url_for("tournees", date=date_iso))
+
+    date_iso = _date_param()
+    sals = db.salaries()
+    noms = {s["id"]: nom_complet(s) for s in sals}
+    liste = []
+    for t in db.tournees_de_la_date(date_iso):
+        courses = db.courses(t["id"])
+        liste.append({
+            "id": t["id"], "salarie": noms.get(t["salarie_id"], "—"),
+            "depart": fmt_hm(t["heure_depart"]) if t["heure_depart"] is not None else "—",
+            "nb": len(courses),
+        })
+    d = datetime.date.fromisoformat(date_iso)
+    return render_template(
+        "tournees.html", date_iso=date_iso, liste=liste, sals=sals, noms=noms,
+        jour=f"{JOURS_NOMS[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
+        veille=(d - datetime.timedelta(days=1)).isoformat(),
+        lendemain=(d + datetime.timedelta(days=1)).isoformat(),
+        carto_actif=carto.actif())
+
+
+@app.route("/tournee/<int:tid>", methods=["GET", "POST"])
+@admin_required
+def tournee_fiche(tid):
+    db = get_db()
+    t = db.tournee(tid)
+    if t is None:
+        abort(404)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "entete":
+            pause_apres = request.form.get("pause_apres", "")
+            db.modifier_tournee(
+                tid,
+                heure_depart=_mn(request.form.get("heure_depart")),
+                depart_adresse=request.form.get("depart_adresse", "").strip(),
+                minutes_stationnement=_ent(request.form.get("minutes_stationnement")),
+                pause_minutes=_ent(request.form.get("pause_minutes")) or 0,
+                pause_apres=(int(pause_apres) if pause_apres.isdigit() else None),
+                retour_depart=bool(request.form.get("retour_depart")),
+                notes=request.form.get("notes", "").strip())
+            flash("Tournée mise à jour.", "ok")
+        elif action == "course_ajouter":
+            db.ajouter_course(tid, _ent(request.form.get("client_id")))
+        elif action == "course_modifier":
+            db.modifier_course(
+                int(request.form["cid"]),
+                client_id=_ent(request.form.get("client_id")),
+                prise_adresse=request.form.get("prise_adresse", "").strip(),
+                depose_adresse=request.form.get("depose_adresse", "").strip(),
+                heure_rdv=_mn(request.form.get("heure_rdv")),
+                minutes_installation=_ent(request.form.get("minutes_installation")),
+                minutes_stationnement=_ent(request.form.get("minutes_stationnement")),
+                notes=request.form.get("notes", "").strip())
+        elif action == "course_supprimer":
+            db.supprimer_course(int(request.form["cid"]))
+        elif action == "course_monter":
+            db.deplacer_course(int(request.form["cid"]), -1)
+        elif action == "course_descendre":
+            db.deplacer_course(int(request.form["cid"]), +1)
+        elif action == "trajet":
+            minutes = _ent(request.form.get("minutes"))
+            origine = request.form.get("origine", "")
+            destination = request.form.get("destination", "")
+            if minutes is not None and origine and destination:
+                # Saisie a la main : elle prime sur le service de cartographie
+                # et resservira a toutes les tournees qui font ce trajet.
+                db.trajet_ecrire(origine, destination, minutes, source="manuel")
+                flash("Durée du trajet enregistrée.", "ok")
+        return redirect(url_for("tournee_fiche", tid=tid))
+
+    sal = db.salarie(t["salarie_id"])
+    depart, lignes, res = _preparer(db, t)
+    return render_template(
+        "tournee.html", t=t, tid=tid,
+        salarie=nom_complet(sal) if sal else "—",
+        date_fr=datetime.date.fromisoformat(t["date"]).strftime("%d/%m/%Y"),
+        depart_effectif=depart,
+        adresse_salarie=(sal["adresse"] or "") if sal else "",
+        heure_depart=fmt_hm(t["heure_depart"]) if t["heure_depart"] is not None else "",
+        lignes=lignes, res=res, clients=db.clients(),
+        noms_clients={c["id"]: nom_client(c) for c in db.clients(actifs_seuls=False)},
+        stationnement=(t["minutes_stationnement"] if t["minutes_stationnement"]
+                       is not None else STATIONNEMENT_DEFAUT),
+        carto_actif=carto.actif())
+
+
+@app.route("/ma-tournee")
+@login_required
+def ma_tournee():
+    db = get_db()
+    date_iso = _date_param()
+    sid = session.get("salarie_id")
+    if session.get("is_admin") and request.args.get("sid"):
+        sid = int(request.args["sid"])
+    if not sid:
+        return render_template("ma_tournee.html", sal=None, date_iso=date_iso)
+
+    sal = db.salarie(sid)
+    t = db.tournee_du_jour(sid, date_iso)
+    res = depart = None
+    if t is not None:
+        depart, _lignes, res = _preparer(db, t)
+    d = datetime.date.fromisoformat(date_iso)
+    return render_template(
+        "ma_tournee.html", sal=sal, t=t, res=res, depart=depart,
+        date_iso=date_iso,
+        jour=f"{JOURS_NOMS[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
+        veille=(d - datetime.timedelta(days=1)).isoformat(),
+        lendemain=(d + datetime.timedelta(days=1)).isoformat())
 
 
 if __name__ == "__main__":

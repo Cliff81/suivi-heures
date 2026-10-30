@@ -1,0 +1,80 @@
+{% from "_icons.html" import ico %}
+{#
+  Déroulé horaire d'une tournée, partagé par la fiche de l'administrateur et
+  la vue du salarié. Avec `tid`, chaque trajet porte un champ pour corriger
+  sa durée ; sans `tid`, le déroulé est en lecture seule.
+#}
+
+{% macro duree(m) -%}
+{%- if m is none or m == 0 -%}—
+{%- elif m < 60 -%}{{ m }} min
+{%- else -%}{{ m // 60 }} h {{ '%02d'|format(m % 60) }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro deroule(res, tid=None) -%}
+<ol class="tl">
+  {% for e in res.etapes %}
+  <li class="t-{{ e.genre }}{{ ' t-inconnu' if e.inconnu }}">
+    <span class="h{{ ' approx' if e.approx }}">{{ fmt_hm(e.debut) }}</span>
+    <span class="rail"><span class="pastille"></span></span>
+    <span>
+      <span class="titre">{{ e.titre }}</span>
+      {% if e.lieu and e.lieu != '—' %}
+        <span class="lieu">{{ ico('epingle','ico-sm') }}<span>{{ e.lieu }}</span></span>
+      {% endif %}
+      {% if e.detail %}<span class="detail">{{ e.detail }}</span>{% endif %}
+
+      {% if tid and e.genre == 'trajet' and e.origine and e.destination %}
+        <form method="post" action="{{ url_for('tournee_fiche', tid=tid) }}">
+          <input type="hidden" name="action" value="trajet">
+          <input type="hidden" name="origine" value="{{ e.origine }}">
+          <input type="hidden" name="destination" value="{{ e.destination }}">
+          <input type="number" min="0" name="minutes" value="{{ e.minutes or '' }}"
+                 aria-label="Durée du trajet en minutes" placeholder="min">
+          <button class="btn btn-sm" type="submit">
+            {{ ico('check','ico-sm') }}{{ "Corriger" if not e.inconnu else "Saisir" }}
+          </button>
+          {% if e.source %}<span class="source {{ e.source }}">{{ e.source }}</span>{% endif %}
+        </form>
+      {% endif %}
+    </span>
+    {% if e.minutes %}
+      <span class="duree">
+        {{ duree(e.minutes) }}
+        {%- if e.km %} · {{ e.km }} km{% endif %}
+      </span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{%- endmacro %}
+
+
+{% macro totaux(res) -%}
+<div class="stats">
+  <div class="stat"><span class="lib">Fin de service</span>
+    <span class="val">{{ fmt_hm(res.totaux.fin) }}</span></div>
+  <div class="stat"><span class="lib">Amplitude</span>
+    <span class="val {{ 'v-sup39' if res.totaux.amplitude > 720 }}">{{ fmt_hm(res.totaux.amplitude) }}</span></div>
+  <div class="stat"><span class="lib">Conduite</span>
+    <span class="val">{{ fmt_hm(res.totaux.conduite) }}</span>
+    {% if res.totaux.km %}<span class="cent">{{ res.totaux.km }} km</span>{% endif %}</div>
+  <div class="stat"><span class="lib">Installation</span>
+    <span class="val">{{ fmt_hm(res.totaux.installation) }}</span></div>
+  <div class="stat"><span class="lib">Stationnement</span>
+    <span class="val">{{ fmt_hm(res.totaux.stationnement) }}</span></div>
+  <div class="stat"><span class="lib">Repos</span>
+    <span class="val">{{ fmt_hm(res.totaux.pause) }}</span></div>
+</div>
+{%- endmacro %}
+
+
+{% macro alertes(res) -%}
+{% for a in res.alertes %}
+  <div class="flash {{ 'error' if a.niveau == 'ko' else '' }}"
+       {% if a.niveau != 'ko' %}style="background:var(--warn-soft);border-color:#E7CE9B;color:var(--warn)"{% endif %}>
+    {{ ico('alerte') }}<span>{{ a.texte }}</span>
+  </div>
+{% endfor %}
+{%- endmacro %}

@@ -44,9 +44,42 @@ Par défaut : `../heures.db` (à côté de l'app bureau).
 Pour en utiliser une autre, définissez la variable d'environnement
 `SUIVI_DB` avec le chemin voulu.
 
+## Planification des tournées
+
+L'onglet **Tournées** (administrateur) prépare la journée d'un salarié : on
+pose les courses dans l'ordre de passage, et les horaires se déduisent tout
+seuls. Le salarié retrouve sa tournée en lecture seule dans **Ma tournée**.
+
+Ce qui entre dans le calcul :
+
+- le **départ** se fait du domicile du salarié (onglet *Salariés*, champ
+  « adresse de départ »), ou d'une adresse propre à la tournée ;
+- le **trajet** entre deux adresses, donné par le service de cartographie
+  quand il est configuré, sinon saisi à la main dans le déroulé ;
+- le **stationnement**, compté à chaque arrêt ;
+- l'**installation** de la personne dans le véhicule, prise sur sa fiche
+  client (ou par défaut selon le type : valide 5 min, fauteuil 10, brancard
+  15), comptée à la prise en charge **et** à la dépose ;
+- le **repos** de la journée, placé après la course de votre choix.
+
+Chaque course peut porter une **heure de rendez-vous à destination** :
+l'écran affiche l'avance ou le retard prévu, et signale les retards.
+
+### Durées de trajet
+Une durée corrigée à la main est marquée *manuel* : elle prime sur le service
+de cartographie et resservira à toutes les tournées qui font le même trajet.
+Sans clé (`SUIVI_CARTO_CLE`, voir `DEPLOIEMENT.md`), toutes les durées se
+saisissent ainsi la première fois, puis sont mémorisées.
+
 ## Notes techniques
 
 - `core.py` : logique métier réutilisée (constantes, classe `DB`, calculs)
   — identique à l'app bureau, sans Tkinter.
+- `tournee.py` : déroulé horaire d'une tournée (fonction pure, sans base ni
+  réseau). `carto.py` : accès au service de cartographie et mémorisation des
+  coordonnées et des durées.
+- Les tables de la planification (`clients`, `tournees`, `tournee_courses`,
+  `geo_cache`, `trajet_cache`) sont propres à la version web : l'application
+  bureau ne les lit jamais et continue de fonctionner sur la même base.
 - `app.py` : serveur Flask (routes, authentification, export Excel).
 - `templates/`, `static/` : interface web.

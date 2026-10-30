@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ico %}
+{% from "_deroule.html" import deroule, totaux, alertes with context %}
+{% block title %}Tournée {{ salarie }} — {{ date_fr }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div class="titres">
+    <h1>{{ salarie }} <span class="muted" style="font-weight:600">— {{ date_fr }}</span></h1>
+    <p class="lede">Les horaires se recalculent à chaque enregistrement.</p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-sm" href="{{ url_for('tournees', date=t['date']) }}">
+      {{ ico('fleche-g','ico-sm') }}Toutes les tournées</a>
+  </div>
+</div>
+
+{{ alertes(res) }}
+
+<div class="card">
+  <div class="card-head"><span class="t">{{ ico('volant') }}Paramètres de la tournée</span></div>
+  <form method="post">
+    <div class="card-body">
+      <input type="hidden" name="action" value="entete">
+      <div class="form-grid">
+        <div class="field"><label for="p-dep">Prise de service</label>
+          <input id="p-dep" type="time" name="heure_depart" value="{{ heure_depart }}"></div>
+        <div class="field"><label for="p-sta">Stationnement par arrêt</label>
+          <input id="p-sta" type="number" min="0" name="minutes_stationnement"
+                 value="{{ stationnement }}">
+          <span class="hint">minutes, à chaque arrêt</span></div>
+        <div class="field"><label for="p-pause">Repos dans la journée</label>
+          <input id="p-pause" type="number" min="0" name="pause_minutes"
+                 value="{{ t['pause_minutes'] or 0 }}">
+          <span class="hint">minutes, 0 = aucun</span></div>
+        <div class="field"><label for="p-apres">Repos placé</label>
+          <select id="p-apres" name="pause_apres">
+            <option value="">— pas de repos —</option>
+            {% for l in lignes %}
+              <option value="{{ loop.index0 }}"
+                {{ 'selected' if t['pause_apres'] == loop.index0 }}>
+                après la course {{ loop.index }} — {{ l.libelle }}</option>
+            {% endfor %}
+          </select></div>
+      </div>
+
+      <div class="field" style="margin-top:14px">
+        <label for="p-adr">Adresse de départ</label>
+        <input id="p-adr" type="text" name="depart_adresse"
+               value="{{ t['depart_adresse'] or '' }}"
+               placeholder="{{ adresse_salarie or 'adresse du salarié non renseignée' }}">
+        <span class="hint">
+          {% if t['depart_adresse'] %}
+            Remplace l'adresse du salarié pour cette tournée.
+          {% elif adresse_salarie %}
+            Vide : on part du domicile du salarié ({{ adresse_salarie }}).
+          {% else %}
+            Le salarié n'a pas d'adresse : renseignez-la dans l'onglet Salariés,
+            ou saisissez un point de départ ici.
+          {% endif %}
+        </span>
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+        <label class="check"><input type="checkbox" name="retour_depart"
+               {{ 'checked' if t['retour_depart'] }}> Retour au point de départ en fin de tournée</label>
+      </div>
+
+      <div class="field" style="margin-top:14px">
+        <label for="p-notes">Notes</label>
+        <input id="p-notes" type="text" name="notes" value="{{ t['notes'] or '' }}">
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn btn-primary" type="submit">{{ ico('enregistrer') }}Enregistrer et recalculer</button>
+    </div>
+  </form>
+</div>
+
+<h2 class="page-head" style="margin:22px 0 12px;font-size:17px">Courses, dans l'ordre de passage</h2>
+
+{% if not lignes %}
+  <p class="vide">Aucune course. Ajoutez la première ci-dessous.</p>
+{% endif %}
+
+{% for l in lignes %}
+<div class="course">
+  <div class="course-tete">
+    <span class="rang">{{ loop.index }}</span>
+    <span class="qui">{{ l.libelle }}</span>
+    {% set r = res.courses[loop.index0] %}
+    {% if r.rdv is not none %}
+      <span class="hint">RDV {{ fmt_hm(r.rdv) }} ·
+        {% if r.ecart is not none and r.ecart < 0 %}
+          <span class="ecart retard">{{ fmt_hm(-r.ecart) }} de retard</span>
+        {% else %}
+          <span class="ecart avance">{{ fmt_hm(r.ecart) }} d'avance</span>
+        {% endif %}
+      </span>
+    {% endif %}
+    <span class="hint">prise {{ fmt_hm(r.arrivee_prise) }} · dépose {{ fmt_hm(r.arrivee_depose) }}</span>
+    <div class="outils">
+      <form method="post"><input type="hidden" name="action" value="course_monter">
+        <input type="hidden" name="cid" value="{{ l.id }}">
+        <button class="btn btn-sm btn-icon btn-ghost" type="submit" title="Monter"
+          aria-label="Monter la course" {{ 'disabled' if loop.first }}>{{ ico('haut','ico-sm') }}</button></form>
+      <form method="post"><input type="hidden" name="action" value="course_descendre">
+        <input type="hidden" name="cid" value="{{ l.id }}">
+        <button class="btn btn-sm btn-icon btn-ghost" type="submit" title="Descendre"
+          aria-label="Descendre la course" {{ 'disabled' if loop.last }}>{{ ico('bas','ico-sm') }}</button></form>
+      <form method="post" onsubmit="return confirm('Retirer cette course ?')">
+        <input type="hidden" name="action" value="course_supprimer">
+        <input type="hidden" name="cid" value="{{ l.id }}">
+        <button class="btn btn-sm btn-icon btn-danger" type="submit" title="Retirer"
+          aria-label="Retirer la course">{{ ico('corbeille','ico-sm') }}</button></form>
+    </div>
+  </div>
+
+  <form method="post">
+    <div class="course-corps">
+      <input type="hidden" name="action" value="course_modifier">
+      <input type="hidden" name="cid" value="{{ l.id }}">
+      <div class="course-grille">
+        <div class="field"><label>Client</label>
+          <select name="client_id">
+            <option value="">— adresse libre —</option>
+            {% for c in clients %}
+              <option value="{{ c['id'] }}" {{ 'selected' if c['id']==l.client_id }}>{{ noms_clients[c['id']] }}</option>
+            {% endfor %}
+          </select></div>
+        <div class="field"><label>Rendez-vous à destination</label>
+          <input type="time" name="heure_rdv" value="{{ l.heure_rdv }}">
+          <span class="hint">facultatif</span></div>
+        <div class="field"><label>Installation (min)</label>
+          <input type="number" min="0" name="minutes_installation"
+                 value="{{ l.minutes_installation if l.minutes_installation is not none }}"
+                 placeholder="{{ l.installation_retenue }}"></div>
+        <div class="field"><label>Stationnement (min)</label>
+          <input type="number" min="0" name="minutes_stationnement"
+                 value="{{ l.minutes_stationnement if l.minutes_stationnement is not none }}"
+                 placeholder="{{ stationnement }}"></div>
+      </div>
+      <div class="duo" style="margin-top:12px">
+        <div class="field"><label>Prise en charge</label>
+          <input type="text" name="prise_adresse" value="{{ l.prise_adresse }}"
+                 placeholder="{{ l.prise_effective or 'adresse de prise en charge' }}">
+          <span class="hint">
+            {%- if l.domicile %}Vide : domicile du client ({{ l.prise_effective }}).
+            {%- else %}Laisser vide pour partir du domicile du client.{% endif %}</span></div>
+        <div class="field"><label>Dépose</label>
+          <input type="text" name="depose_adresse" value="{{ l.depose_adresse }}"
+                 placeholder="hôpital, cabinet, domicile…"></div>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Notes</label>
+        <input type="text" name="notes" value="{{ l.notes }}">
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-sm" type="submit">{{ ico('enregistrer','ico-sm') }}Enregistrer la course</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endfor %}
+
+<div class="card">
+  <form method="post">
+    <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <input type="hidden" name="action" value="course_ajouter">
+      <div class="field" style="flex:1 1 220px">
+        <label for="a-client">Ajouter une course</label>
+        <select id="a-client" name="client_id">
+          <option value="">— adresse libre —</option>
+          {% for c in clients %}
+            <option value="{{ c['id'] }}">{{ noms_clients[c['id']] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">{{ ico('plus') }}Ajouter</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="t">{{ ico('horloge') }}Déroulé prévu</span>
+    {% if res.totaux.approx %}
+      <span class="sub">heures incomplètes : des durées de trajet manquent</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    {% if lignes %}
+      {{ deroule(res, tid) }}
+    {% else %}
+      <p class="hint" style="margin:0">Le déroulé apparaîtra dès la première course.</p>
+    {% endif %}
+  </div>
+  {% if lignes %}{{ totaux(res) }}{% endif %}
+</div>
+{% endblock %}
