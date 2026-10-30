@@ -2,6 +2,7 @@
 {% from "_icons.html" import ico %}
 {% from "_course.html" import course with context %}
 {% block title %}Journée du {{ date_iso }} — Suivi des heures{% endblock %}
+
 {% block content %}
 
 <div class="page-head">
@@ -103,9 +104,9 @@
       et en cherchant le moins de route possible. Le résultat est une
       proposition : tout reste modifiable ensuite.</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <form method="post" action="{{ url_for('journee_optimiser') }}">
+      <form method="post" action="{{ url_for('journee_optimiser') }}" id="form-optim">
         <input type="hidden" name="date" value="{{ date_iso }}">
-        <button class="btn btn-primary" type="submit"
+        <button class="btn btn-primary" type="submit" id="btn-optim"
                 {{ 'disabled' if not carto_actif or not dispos or not lignes }}>
           {{ ico('etincelles') }}Optimiser et attribuer</button>
       </form>
@@ -117,6 +118,11 @@
       </form>
       {% endif %}
     </div>
+  </div>
+
+  <div class="progression" id="progression" aria-live="polite" hidden>
+    <ol class="pas" id="pas"></ol>
+    <div id="pas-fin"></div>
   </div>
 
   {% if placees %}
@@ -179,4 +185,108 @@
   {% endfor %}
 {% endfor %}
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Progression du calcul : le serveur renvoie ses étapes au fil de l'eau
+// (une ligne JSON par étape). Sans JavaScript, le formulaire part en POST
+// classique et la page se recharge à la fin — l'écran reste utilisable.
+(function () {
+  const form = document.getElementById("form-optim");
+  if (!form || !window.fetch || !window.ReadableStream) return;
+
+  const panneau = document.getElementById("progression");
+  const liste = document.getElementById("pas");
+  const bilan = document.getElementById("pas-fin");
+  const bouton = document.getElementById("btn-optim");
+  let courant = null;
+
+  const ico = (nom) =>
+    `<svg class="ico ico-sm" aria-hidden="true"><use href="#i-${nom}"/></svg>`;
+
+  function termine(li) {
+    if (!li) return;
+    const p = li.querySelector(".puce");
+    if (p) p.outerHTML = `<span class="puce fait">${ico("check")}</span>`;
+  }
+
+  function etape(texte) {
+    termine(courant);
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="puce"><span class="rouet"></span></span>
+                    <span>${texte}</span>`;
+    liste.appendChild(li);
+    courant = li;
+    return li;
+  }
+
+  function detail(texte, ok) {
+    const li = document.createElement("li");
+    li.className = "detail" + (ok ? "" : " rate");
+    li.textContent = texte;
+    liste.appendChild(li);
+    liste.scrollTop = liste.scrollHeight;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    bouton.disabled = true;
+    panneau.hidden = false;
+    liste.innerHTML = "";
+    bilan.innerHTML = "";
+    courant = null;
+
+    const corps = new FormData(form);
+    corps.append("flux", "1");
+    let reponse;
+    try {
+      reponse = await fetch(form.action, { method: "POST", body: corps });
+    } catch (err) {
+      bilan.innerHTML = `<div class="flash error">${ico("alerte")}
+        <span>Le serveur n'a pas répondu.</span></div>`;
+      bouton.disabled = false;
+      return;
+    }
+
+    const lecteur = reponse.body.getReader();
+    const dec = new TextDecoder();
+    let reste = "";
+    while (true) {
+      const { value, done } = await lecteur.read();
+      if (done) break;
+      reste += dec.decode(value, { stream: true });
+      const lignes = reste.split("\n");
+      reste = lignes.pop();
+      for (const ligne of lignes) {
+        if (!ligne.trim()) continue;
+        let pas;
+        try { pas = JSON.parse(ligne); } catch (err) { continue; }
+        if (pas.genre === "etape") etape(pas.texte);
+        else if (pas.genre === "detail") detail(pas.texte, pas.ok);
+        else if (pas.genre === "fin") {
+          termine(courant);
+          courant = null;
+          bilan.innerHTML = pas.messages.map(([t, n]) =>
+            `<div class="flash ${n === "ok" ? "ok" : "error"}">
+               ${ico(n === "ok" ? "check-cercle" : "alerte")}<span>${t}</span></div>`
+          ).join("");
+          const net = pas.ok && pas.messages.every(([, n]) => n === "ok");
+          if (net) {
+            setTimeout(() => location.reload(), 900);
+          } else {
+            const b = document.createElement("button");
+            b.className = "btn btn-primary";
+            b.type = "button";
+            b.textContent = "Voir le résultat";
+            b.onclick = () => location.reload();
+            bilan.appendChild(b);
+            bouton.disabled = false;
+          }
+        }
+      }
+    }
+  });
+})();
+</script>
 {% endblock %}

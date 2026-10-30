@@ -11,13 +11,15 @@ Lancement :  python3 app.py   puis ouvrir http://127.0.0.1:5000
 """
 
 import io
+import json
 import os
 import secrets
 import datetime
 import functools
 
-from flask import (Flask, g, session, request, redirect, url_for,
-                   render_template, flash, send_file, abort)
+from flask import (Flask, Response, g, session, request, redirect, url_for,
+                   render_template, flash, send_file, abort,
+                   stream_with_context)
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import core
@@ -1107,32 +1109,54 @@ def journee():
         lendemain=(d + datetime.timedelta(days=1)).isoformat())
 
 
-@app.route("/journee/optimiser", methods=["POST"])
-@admin_required
-def journee_optimiser():
-    """Attribue les courses aux salaries disponibles.
+def _optimiser(db, date_iso):
+    """Attribue les courses aux salaries disponibles, etape par etape.
 
-    Appelle le solveur, et lui seul decide de la repartition et de l'ordre.
-    Point d'entree a quota serre : jamais declenche automatiquement.
+    Generateur : il rend sa progression au fur et a mesure, parce que le
+    premier calcul d'une journee geocode les adresses une par une et peut
+    durer plusieurs secondes. Deux consommateurs s'en servent : la reponse
+    en flux, qui affiche les etapes, et le POST ordinaire sans JavaScript,
+    qui les deroule d'un coup. La logique, elle, n'existe qu'ici.
+
+    Rend des dicts {genre, texte} ; le dernier a le genre "fin" et porte le
+    bilan a afficher.
     """
-    db = get_db()
-    date_iso = _date_param()
-    retour = redirect(url_for("journee", date=date_iso))
+    def fin(ok, messages):
+        return {"genre": "fin", "ok": ok, "messages": messages}
 
     dispos = db.dispos(date_iso)
     courses = db.courses(date_iso)
     if not dispos:
-        flash("Aucun salarié disponible ce jour-là.", "error")
-        return retour
+        yield fin(False, [("Aucun salarié disponible ce jour-là.", "error")])
+        return
     if not courses:
-        flash("Aucune course à placer.", "error")
-        return retour
+        yield fin(False, [("Aucune course à placer.", "error")])
+        return
+
+    yield {"genre": "etape", "texte":
+           f"{len(dispos)} salarié(s) disponible(s), {len(courses)} course(s)"}
 
     lignes = [_ligne_course(db, c) for c in courses]
     adresses = [_adresse_depart(db, date_iso, d["salarie_id"]) for d in dispos]
     adresses += [l["prise_effective"] for l in lignes]
     adresses += [l["depose_adresse"] for l in lignes]
-    coords, manquantes = _coords_du_jour(db, adresses)
+    adresses = sorted({(a or "").strip() for a in adresses if (a or "").strip()})
+
+    yield {"genre": "etape", "texte": f"Localisation de {len(adresses)} adresse(s)"}
+    budget = carto.Budget()
+    coords, manquantes = {}, []
+    for i, a in enumerate(adresses, 1):
+        deja = db.geo_lire(a) is not None
+        point, motif = carto.geocoder(db, a, budget)
+        if point is None:
+            manquantes.append((a, motif))
+            yield {"genre": "detail", "texte": f"{i}/{len(adresses)} — {a} : {motif}",
+                   "ok": False}
+        else:
+            coords[a] = (point[0], point[1])
+            yield {"genre": "detail",
+                   "texte": f"{i}/{len(adresses)} — {a}"
+                            + ("" if deja else " (nouvelle)"), "ok": True}
 
     salaries = [{
         "id": d["salarie_id"],
@@ -1157,24 +1181,30 @@ def journee_optimiser():
 
     charge, ecartes = optim.construire(salaries, demande, coords)
     if not charge["vehicles"] or not charge["shipments"]:
-        flash("Rien d'exploitable : vérifiez les adresses.", "error")
         db.noter_optimisation(date_iso, -1, len(demande),
                               "aucune adresse exploitable", None)
-        return retour
+        yield fin(False, [("Rien d'exploitable : vérifiez les adresses.", "error")])
+        return
+
+    yield {"genre": "etape", "texte":
+           f"Calcul de la répartition : {len(charge['vehicles'])} véhicule(s), "
+           f"{len(charge['shipments'])} course(s)"}
 
     reponse, quota, motif = carto.optimiser(charge)
     if reponse is None:
         db.noter_optimisation(date_iso, -1, 0, motif, quota)
-        flash(f"Optimisation impossible : {motif}. Les courses restent à "
-              f"placer, vous pouvez les attribuer à la main.", "error")
-        return retour
+        yield fin(False, [(f"Optimisation impossible : {motif}. Les courses "
+                           f"restent à placer, vous pouvez les attribuer à la "
+                           f"main.", "error")])
+        return
 
     lu = optim.relire(reponse)
     if lu["motif"]:
         db.noter_optimisation(date_iso, reponse.get("code", -1), 0, lu["motif"], quota)
-        flash(f"Optimisation impossible : {lu['motif']}.", "error")
-        return retour
+        yield fin(False, [(f"Optimisation impossible : {lu['motif']}.", "error")])
+        return
 
+    yield {"genre": "etape", "texte": "Enregistrement de l'attribution"}
     db.vider_attributions(date_iso)
     for cid, a in lu["affectations"].items():
         db.attribuer(cid, a["salarie"], a["position"], a["prise"], a["depose"])
@@ -1199,12 +1229,48 @@ def journee_optimiser():
            f"{lu['resume'].get('vehicules', 0)} salarié(s).")
     if non_places:
         msg += f" {non_places} n'ont pas pu être placées."
-    flash(msg, "ok" if not non_places else "error")
+    messages = [(msg, "ok" if not non_places else "error")]
     for e in ecartes:
-        flash(f"Écarté du calcul — {e['motif']}", "error")
-    for a, motif in manquantes:
-        flash(f"Adresse non localisée : {a} ({motif})", "error")
-    return retour
+        messages.append((f"Écarté du calcul — {e['motif']}", "error"))
+    for a, m in manquantes:
+        messages.append((f"Adresse non localisée : {a} ({m})", "error"))
+    if quota is not None:
+        messages.append((f"Il vous reste {quota} optimisation(s) aujourd'hui.",
+                         "ok"))
+    yield fin(True, messages)
+
+
+@app.route("/journee/optimiser", methods=["POST"])
+@admin_required
+def journee_optimiser():
+    """Lance l'attribution. Point d'entree a quota serre : jamais automatique.
+
+    En flux quand le navigateur le demande (progression visible), sinon en
+    POST classique qui redirige — l'ecran reste utilisable sans JavaScript.
+    """
+    date_iso = _date_param()
+
+    if request.form.get("flux"):
+        def lignes():
+            # Connexion a nous : celle de la requete est fermee par le
+            # teardown avant que le corps en flux ne soit consomme.
+            flux_db = DB(DB_PATH)
+            try:
+                for pas in _optimiser(flux_db, date_iso):
+                    yield json.dumps(pas, ensure_ascii=False) + "\n"
+            finally:
+                flux_db.conn.close()
+        return Response(stream_with_context(lignes()),
+                        mimetype="application/x-ndjson",
+                        headers={"Cache-Control": "no-store",
+                                 "X-Accel-Buffering": "no"})
+
+    db = get_db()
+    for pas in _optimiser(db, date_iso):
+        if pas["genre"] == "fin":
+            for texte, niveau in pas["messages"]:
+                flash(texte, niveau)
+    return redirect(url_for("journee", date=date_iso))
 
 
 @app.route("/journee/<date_iso>/<int:sid>", methods=["GET", "POST"])

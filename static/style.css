@@ -671,6 +671,33 @@ input.alerte,.tbl td input.alerte{
 }
 .tl .source.manuel{color:var(--accent)}
 
+/* Progression d'un calcul en cours */
+.progression{
+  margin-top:14px;padding:14px 16px;
+  background:var(--surface-2);border:1px solid var(--line);
+  border-radius:var(--r-2);
+}
+.pas{list-style:none;margin:0;padding:0;display:grid;gap:5px;
+  max-height:260px;overflow-y:auto}
+.pas li{display:flex;align-items:flex-start;gap:9px;font-size:14px;
+  font-weight:600;color:var(--ink)}
+.pas li.detail{
+  padding-left:25px;font-size:13px;font-weight:500;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+.pas li.detail.rate{color:var(--danger)}
+.pas .puce{width:16px;flex:none;display:grid;place-items:center;margin-top:2px}
+.pas .puce.fait .ico{color:var(--ok)}
+.rouet{
+  width:13px;height:13px;border:2px solid var(--line-2);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:tourne .7s linear infinite;
+}
+@keyframes tourne{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.rouet{animation-duration:2.4s}}
+.progression .flash{margin:12px 0 0}
+.progression .btn{margin-top:10px}
+
 /* Courses d'une tournée */
 .course{
   background:var(--surface);border:1px solid var(--line);
