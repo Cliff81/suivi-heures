@@ -271,6 +271,11 @@ def derouler_calcule(depart_adresse, heure_depart, courses, pause, duree):
                 inconnu=mn is None))
             t += mn or 0
 
+        # Filet : une heure enregistree plus ancienne que l'horloge courante
+        # ferait reculer le deroule. Cela ne doit plus arriver (les heures
+        # sont effacees des qu'un parametre change), mais un deroule qui
+        # recule serait pire que tout.
+        heure = max(heure, t)
         if heure > t:
             attente += heure - t
             etapes.append(_etape(

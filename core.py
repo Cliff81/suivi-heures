@@ -602,6 +602,32 @@ class DB:
                 " depose_calc=? WHERE id=?", (sid, position, prise, depose, cid))
         self.conn.commit()
 
+    def effacer_calculs(self, date_iso):
+        """Oublie les heures calculees, en gardant qui fait quoi et dans quel
+        ordre.
+
+        Des qu'un parametre change — duree d'installation, stationnement,
+        creneau, plage d'un salarie — les heures arretees par le solveur ne
+        decoulent plus de ce qui est affiche. Les garder donnerait un deroule
+        qui se contredit, et ou les heures peuvent meme reculer. On les
+        efface : l'affichage repart alors des parametres courants, et
+        l'ecran invite a relancer le calcul.
+        """
+        self.conn.execute(
+            "UPDATE courses SET prise_calc=NULL, depose_calc=NULL WHERE date=?",
+            (date_iso,))
+        self.conn.execute(
+            "UPDATE journee_salaries SET pause_debut=NULL WHERE date=?",
+            (date_iso,))
+        self.conn.commit()
+
+    def calcul_perime(self, date_iso):
+        """Des courses sont attribuees mais leurs heures ont ete effacees."""
+        r = self.conn.execute(
+            "SELECT COUNT(*) FROM courses WHERE date=? AND salarie_id IS NOT NULL"
+            " AND prise_calc IS NULL", (date_iso,)).fetchone()
+        return r[0] > 0
+
     def vider_attributions(self, date_iso):
         self.conn.execute(
             "UPDATE courses SET salarie_id=NULL, position=NULL, prise_calc=NULL,"

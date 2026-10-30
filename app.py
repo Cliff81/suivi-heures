@@ -1034,6 +1034,7 @@ def journee():
         action = request.form.get("action")
 
         if action == "dispos":
+            db.effacer_calculs(date_iso)
             db.poser_journee(date_iso,
                              _ent(request.form.get("stationnement")),
                              request.form.get("journee_notes", "").strip())
@@ -1056,6 +1057,7 @@ def journee():
             db.ajouter_course(date_iso, _ent(request.form.get("client_id")))
 
         elif action == "course_modifier":
+            db.effacer_calculs(date_iso)
             db.modifier_course(
                 int(request.form["cid"]),
                 client_id=_ent(request.form.get("client_id")),
@@ -1104,6 +1106,7 @@ def journee():
         stationnement_defaut=db.stationnement(date_iso),
         journee=db.journee(date_iso),
         optimisation=db.optimisation(date_iso),
+        perime=db.calcul_perime(date_iso),
         carto_actif=carto.actif(),
         jour=f"{JOURS_NOMS[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
         veille=(d - datetime.timedelta(days=1)).isoformat(),
@@ -1316,13 +1319,14 @@ def tournee_fiche(date_iso, sid):
         return redirect(url_for("tournee_fiche", date_iso=date_iso, sid=sid))
 
     lignes, res, depart = _deroule(db, date_iso, sid)
+    perime = db.calcul_perime(date_iso)
     autres = [s for s in db.salaries()
               if s["id"] != sid and db.dispo(date_iso, s["id"]) is not None]
     return render_template(
         "tournee.html", date_iso=date_iso, sid=sid,
         salarie=nom_complet(sal), depart=depart,
         date_fr=datetime.date.fromisoformat(date_iso).strftime("%d/%m/%Y"),
-        dispo=db.dispo(date_iso, sid), lignes=lignes, res=res,
+        dispo=db.dispo(date_iso, sid), lignes=lignes, res=res, perime=perime,
         autres=autres, noms={s["id"]: nom_complet(s) for s in db.salaries()})
 
 

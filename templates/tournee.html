@@ -21,6 +21,16 @@
     calculés à partir de 00:00 : déclarez-le dans la journée.</span></div>
 {% endif %}
 
+{% if perime %}
+<div class="flash" role="status"
+     style="background:var(--warn-soft);border-color:var(--warn-bord);color:var(--warn)">
+  {{ ico('alerte') }}
+  <span>Des paramètres ont changé depuis le dernier calcul. Les horaires
+    affichés sont recalculés à partir des valeurs courantes, course après
+    course — relancez l'optimisation pour une répartition à jour.</span>
+</div>
+{% endif %}
+
 {{ alertes(res) }}
 
 {% if not lignes %}
