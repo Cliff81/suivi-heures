@@ -627,6 +627,49 @@ def releve_excel():
 # --------------------------------------------------------------------------
 # Salaries
 # --------------------------------------------------------------------------
+def _personne_salarie(db, s, jour=None):
+    """Vue d'un salarie comme personne, pour la liste et pour sa fiche."""
+    duree = fmt_hm(db.duree_hebdo(s["id"]))
+    adresse = (s["adresse"] or "").strip()
+    resume = f"{duree} par semaine"
+    if adresse:
+        resume += f" · {adresse}"
+    return {
+        "id": s["id"], "nom": s["nom"], "prenom": s["prenom"] or "",
+        "nom_complet": nom_complet(s), "adresse": adresse,
+        "telephone": s["telephone"] or "", "notes": s["notes"] or "",
+        "duree": duree, "resume": resume, "badges": [],
+        "libelle_adresse": "Adresse de départ",
+        "aide_adresse": "D'où part le véhicule le matin : point de départ de "
+                        "ses tournées. Le salarié peut la régler lui-même "
+                        "depuis « Mon compte ».",
+    }
+
+
+def _personne_client(db, c):
+    """Vue d'un client comme personne."""
+    installation = _installation({"minutes_installation": None}, c)
+    adresse = (c["adresse"] or "").strip()
+    resume = f"installation {installation} min"
+    if adresse:
+        resume += f" · {adresse}"
+    badges = [c["type_transport"] or "valide"]
+    if not c["actif"]:
+        badges.append("inactif")
+    return {
+        "id": c["id"], "nom": c["nom"], "prenom": c["prenom"] or "",
+        "nom_complet": nom_client(c), "adresse": adresse,
+        "telephone": c["telephone"] or "", "notes": c["notes"] or "",
+        "type_transport": c["type_transport"] or "valide",
+        "minutes_installation": c["minutes_installation"],
+        "installation_retenue": installation,
+        "actif": bool(c["actif"]), "resume": resume, "badges": badges,
+        "libelle_adresse": "Adresse de domicile",
+        "aide_adresse": "Proposée par défaut comme lieu de prise en charge "
+                        "quand on ajoute une course pour cette personne.",
+    }
+
+
 @app.route("/salaries", methods=["GET", "POST"])
 @admin_required
 def salaries():
@@ -641,23 +684,47 @@ def salaries():
                 flash("Salarié ajouté.", "ok")
             else:
                 flash("Le nom est obligatoire.", "error")
-        elif action == "modifier":
-            sid = int(request.form["sid"])
-            duree = parse_heure(request.form.get("duree", "")) or core.DUREE_HEBDO_DEFAUT
-            db.modifier_salarie(sid, request.form.get("nom", "").strip(),
-                                request.form.get("prenom", "").strip(), duree)
-            db.set_salarie_adresse(sid, request.form.get("adresse", "").strip())
-            flash("Salarié modifié.", "ok")
         elif action == "supprimer":
-            db.supprimer_salarie(int(request.form["sid"]))
+            db.supprimer_salarie(int(request.form["id"]))
             flash("Salarié supprimé.", "ok")
         return redirect(url_for("salaries"))
 
-    sals = [{"id": s["id"], "nom": s["nom"], "prenom": s["prenom"] or "",
-             "nom_complet": nom_complet(s), "adresse": s["adresse"] or "",
-             "duree": fmt_hm(db.duree_hebdo(s["id"]))}
-            for s in db.salaries()]
-    return render_template("salaries.html", sals=sals)
+    return render_template("salaries.html",
+                           sals=[_personne_salarie(db, s) for s in db.salaries()])
+
+
+@app.route("/salarie/<int:sid>", methods=["GET", "POST"])
+@admin_required
+def fiche_salarie(sid):
+    db = get_db()
+    s = db.salarie(sid)
+    if s is None:
+        abort(404)
+    if request.method == "POST":
+        if request.form.get("action") == "modifier":
+            nom = request.form.get("nom", "").strip()
+            if not nom:
+                flash("Le nom est obligatoire.", "error")
+            else:
+                db.modifier_salarie(
+                    sid, nom=nom, prenom=request.form.get("prenom", "").strip(),
+                    duree=_mn(request.form.get("duree")),
+                    adresse=request.form.get("adresse", "").strip(),
+                    telephone=request.form.get("telephone", "").strip(),
+                    notes=request.form.get("notes", "").strip())
+                flash("Fiche enregistrée.", "ok")
+        return redirect(url_for("fiche_salarie", sid=sid))
+
+    jour = datetime.date.today().isoformat()
+    p = _personne_salarie(db, s)
+    compte = next((u["login"] for u in db.users() if u["salarie_id"] == sid), None)
+    p.update({
+        "compte": compte, "jour": jour,
+        "nb_courses": len(db.courses(jour, sid)),
+        "nb_jours": db.conn.execute(
+            "SELECT COUNT(*) FROM jours WHERE salarie_id=?", (sid,)).fetchone()[0],
+    })
+    return render_template("fiche_salarie.html", p=p)
 
 
 # --------------------------------------------------------------------------
@@ -1336,45 +1403,52 @@ def clients():
     db = get_db()
     if request.method == "POST":
         action = request.form.get("action")
-        champs = dict(
-            nom=request.form.get("nom", "").strip().upper(),
-            prenom=request.form.get("prenom", "").strip(),
-            adresse=request.form.get("adresse", "").strip(),
-            telephone=request.form.get("telephone", "").strip(),
-            type_transport=request.form.get("type_transport", "valide"),
-            minutes_installation=_ent(request.form.get("minutes_installation")),
-            notes=request.form.get("notes", "").strip(),
-            actif=1 if request.form.get("actif") else 0,
-        )
         if action == "ajouter":
-            if champs["nom"]:
-                db.ajouter_client(**champs)
+            nom = request.form.get("nom", "").strip().upper()
+            if nom:
+                db.ajouter_client(
+                    nom=nom, prenom=request.form.get("prenom", "").strip(),
+                    type_transport=request.form.get("type_transport", "valide"))
                 flash("Client ajouté.", "ok")
             else:
                 flash("Le nom est obligatoire.", "error")
-        elif action == "modifier":
-            db.modifier_client(int(request.form["cid"]), **champs)
-            flash("Client modifié.", "ok")
         elif action == "supprimer":
-            db.supprimer_client(int(request.form["cid"]))
+            db.supprimer_client(int(request.form["id"]))
             flash("Client supprimé. Les tournées passées gardent leurs adresses.", "ok")
         return redirect(url_for("clients"))
 
-    cls = []
-    for c in db.clients(actifs_seuls=False):
-        cls.append({
-            "id": c["id"], "nom": c["nom"], "prenom": c["prenom"] or "",
-            "nom_complet": nom_client(c), "adresse": c["adresse"] or "",
-            "telephone": c["telephone"] or "",
-            "type_transport": c["type_transport"] or "valide",
-            "minutes_installation": c["minutes_installation"],
-            "installation_retenue": _installation(
-                {"minutes_installation": None}, c),
-            "notes": c["notes"] or "", "actif": bool(c["actif"]),
-        })
-    return render_template("clients.html", clients=cls,
-                           types=TYPES_TRANSPORT,
-                           defauts=INSTALLATION_DEFAUT)
+    return render_template(
+        "clients.html",
+        clients=[_personne_client(db, c) for c in db.clients(actifs_seuls=False)],
+        types=TYPES_TRANSPORT, defauts=INSTALLATION_DEFAUT)
+
+
+@app.route("/client/<int:cid>", methods=["GET", "POST"])
+@admin_required
+def fiche_client(cid):
+    db = get_db()
+    c = db.client(cid)
+    if c is None:
+        abort(404)
+    if request.method == "POST":
+        if request.form.get("action") == "modifier":
+            nom = request.form.get("nom", "").strip().upper()
+            if not nom:
+                flash("Le nom est obligatoire.", "error")
+            else:
+                db.modifier_client(
+                    cid, nom=nom, prenom=request.form.get("prenom", "").strip(),
+                    adresse=request.form.get("adresse", "").strip(),
+                    telephone=request.form.get("telephone", "").strip(),
+                    type_transport=request.form.get("type_transport", "valide"),
+                    minutes_installation=_ent(request.form.get("minutes_installation")),
+                    notes=request.form.get("notes", "").strip(),
+                    actif=1 if request.form.get("actif") else 0)
+                flash("Fiche enregistrée.", "ok")
+        return redirect(url_for("fiche_client", cid=cid))
+
+    return render_template("fiche_client.html", p=_personne_client(db, c),
+                           types=TYPES_TRANSPORT)
 
 
 @app.route("/mon-compte", methods=["GET", "POST"])

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ico %}
+{% from "_personne.html" import fiche, identite with context %}
+{% block title %}{{ p.nom_complet }} — Suivi des heures{% endblock %}
+{% block content %}
+
+{{ fiche(p, url_for('clients'), 'Tous les clients') }}
+
+<form method="post">
+  <input type="hidden" name="action" value="modifier">
+  {{ identite(p) }}
+
+  <div class="card">
+    <div class="card-head"><span class="t">{{ ico('route') }}Transport</span></div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field"><label for="f-type">Type de transport</label>
+          <select id="f-type" name="type_transport">
+            {% for cle, lib in types %}
+              <option value="{{ cle }}" {{ 'selected' if cle==p.type_transport }}>{{ lib }}</option>
+            {% endfor %}
+          </select></div>
+        <div class="field"><label for="f-inst">Temps d'installation</label>
+          <input id="f-inst" type="number" min="0" name="minutes_installation"
+                 value="{{ p.minutes_installation if p.minutes_installation is not none }}"
+                 placeholder="{{ p.installation_retenue }}">
+          <span class="hint">Minutes, compté à la prise en charge et à la
+            dépose. Vide = défaut du type ({{ p.installation_retenue }} min).</span></div>
+        <div class="field"><label>Fiche active</label>
+          <label class="check"><input type="checkbox" name="actif"
+                 {{ 'checked' if p.actif }}> Proposée dans les tournées</label></div>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn btn-primary" type="submit">
+        {{ ico('enregistrer') }}Enregistrer la fiche</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% from "_icons.html" import ico %}
+{#
+  Fiche d'une personne. Un salarié et un client partagent la même identité —
+  nom, adresse, téléphone, notes — et ne diffèrent que par ce qui tient à
+  leur rôle. Le bloc propre à chacun arrive par {% call %}.
+#}
+
+{% macro ligne(p, url_fiche, url_liste, question) -%}
+<li>
+  <a class="ident" href="{{ url_fiche }}">
+    <span class="avatar">{{ ico('personne','ico-sm') }}</span>
+    <span>
+      <span class="principal">{{ p.nom_complet }}</span>
+      {% for b in p.badges %}<span class="badge">{{ b }}</span>{% endfor %}
+      <br><span class="meta">{{ p.resume }}</span>
+    </span>
+  </a>
+  <div class="outils">
+    <a class="btn btn-sm" href="{{ url_fiche }}">{{ ico('crayon','ico-sm') }}Ouvrir</a>
+    <form method="post" action="{{ url_liste }}"
+          onsubmit="return confirm('{{ question }}')">
+      <input type="hidden" name="action" value="supprimer">
+      <input type="hidden" name="id" value="{{ p.id }}">
+      <button class="btn btn-sm btn-icon btn-danger" type="submit"
+              title="Supprimer" aria-label="Supprimer {{ p.nom_complet }}">
+        {{ ico('corbeille','ico-sm') }}</button>
+    </form>
+  </div>
+</li>
+{%- endmacro %}
+
+
+{% macro fiche(p, retour, titre_retour) -%}
+<div class="page-head">
+  <div class="titres">
+    <h1>{{ p.nom_complet or "Sans nom" }}</h1>
+    <p class="lede">{{ p.resume }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn btn-sm" href="{{ retour }}">
+      {{ ico('fleche-g','ico-sm') }}{{ titre_retour }}</a>
+  </div>
+</div>
+{%- endmacro %}
+
+
+{% macro identite(p) -%}
+<div class="card">
+  <div class="card-head"><span class="t">{{ ico('personne') }}Identité</span></div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="field"><label for="f-prenom">Prénom</label>
+        <input id="f-prenom" type="text" name="prenom" value="{{ p.prenom }}"></div>
+      <div class="field"><label for="f-nom">Nom</label>
+        <input id="f-nom" type="text" name="nom" value="{{ p.nom }}" required></div>
+      <div class="field"><label for="f-tel">Téléphone</label>
+        <input id="f-tel" type="text" name="telephone" value="{{ p.telephone }}"></div>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label for="f-adresse">{{ ico('epingle','ico-sm') }} {{ p.libelle_adresse }}</label>
+      <input id="f-adresse" type="text" name="adresse" value="{{ p.adresse }}"
+             placeholder="12 rue des Lilas, 31000 Toulouse">
+      <span class="hint">{{ p.aide_adresse }}</span>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label for="f-notes">Notes</label>
+      <input id="f-notes" type="text" name="notes" value="{{ p.notes }}"
+             placeholder="étage, code d'entrée, particularités…">
+    </div>
+  </div>
+</div>
+{%- endmacro %}

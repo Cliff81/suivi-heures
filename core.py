@@ -347,10 +347,12 @@ class DB:
                 maj TEXT,
                 PRIMARY KEY (origine, destination)
             )""")
-        # Adresse de depart du salarie (il part de chez lui avec le vehicule).
+        # Un salarie et un client sont d'abord des personnes : meme fiche,
+        # memes champs d'identite. L'application bureau ignore ces colonnes.
         scols = {r["name"] for r in c.execute("PRAGMA table_info(salaries)")}
-        if "adresse" not in scols:
-            c.execute("ALTER TABLE salaries ADD COLUMN adresse TEXT DEFAULT ''")
+        for col in ("adresse", "telephone", "notes"):
+            if col not in scols:
+                c.execute(f"ALTER TABLE salaries ADD COLUMN {col} TEXT DEFAULT ''")
         self.conn.commit()
 
     def _init_salaries(self):
@@ -386,10 +388,13 @@ class DB:
             "VALUES (?,?,?,?)", (nom, prenom, duree, pos))
         self.conn.commit()
 
-    def modifier_salarie(self, sid, nom, prenom, duree):
+    def modifier_salarie(self, sid, **v):
         self.conn.execute(
-            "UPDATE salaries SET nom=?, prenom=?, duree_hebdo=? WHERE id=?",
-            (nom, prenom, duree, sid))
+            "UPDATE salaries SET nom=?, prenom=?, duree_hebdo=?, adresse=?, "
+            "telephone=?, notes=? WHERE id=?",
+            (v["nom"], v.get("prenom", ""), v.get("duree") or DUREE_HEBDO_DEFAUT,
+             v.get("adresse", ""), v.get("telephone", ""), v.get("notes", ""),
+             sid))
         self.conn.commit()
 
     def supprimer_salarie(self, sid):

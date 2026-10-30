@@ -1,112 +1,53 @@
 {% extends "base.html" %}
 {% from "_icons.html" import ico %}
+{% from "_personne.html" import ligne with context %}
 {% block title %}Clients — Suivi des heures{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <div class="titres">
     <h1>Clients</h1>
-    <p class="lede">Les fiches servent à composer les tournées : l'adresse de
-       domicile est proposée par défaut comme lieu de prise en charge, et le
-       temps d'installation entre dans le calcul des horaires.</p>
+    <p class="lede">Ouvrez une fiche pour l'adresse de domicile, le type de
+       transport et le temps d'installation — ce qui entre dans le calcul des
+       tournées.</p>
   </div>
 </div>
 
-<div class="flash" role="note" style="background:var(--surface);border-color:var(--line);color:var(--ink-2);font-weight:500">
+<div class="flash" role="note"
+     style="background:var(--surface);border-color:var(--line);color:var(--ink-2);font-weight:500">
   {{ ico('info') }}
-  <span>Ces fiches contiennent des données personnelles de santé (nom, adresse,
-    type de transport). Elles ne sortent du serveur que vers le service de
-    cartographie, et seulement l'adresse.</span>
+  <span>Ces fiches contiennent des données personnelles de santé. Les adresses
+    sont localisées par la Base Adresse Nationale et ne quittent pas la
+    France ; seules des coordonnées servent ensuite au calcul des trajets.</span>
 </div>
 
 {% if not clients %}
-  <p class="vide">Aucun client pour l'instant. Créez-en un ci-dessous.</p>
+  <p class="vide">Aucun client pour l'instant.</p>
+{% else %}
+<ul class="rows">
+  {% for c in clients %}
+    {{ ligne(c, url_for('fiche_client', cid=c.id), url_for('clients'),
+             'Supprimer la fiche de ' ~ c.nom_complet ~ ' ?') }}
+  {% endfor %}
+</ul>
 {% endif %}
-
-{% for c in clients %}
-<div class="card">
-  <div class="card-head">
-    <span class="t">{{ ico('personne') }}{{ c.nom_complet }}</span>
-    <span class="badge">{{ c.type_transport }}</span>
-    {% if not c.actif %}<span class="badge badge-user">Inactif</span>{% endif %}
-    <span class="sub">installation {{ c.installation_retenue }} min</span>
-    <form method="post" class="spacer" style="margin:0"
-          onsubmit="return confirm('Supprimer la fiche de {{ c.nom_complet }} ?')">
-      <input type="hidden" name="action" value="supprimer">
-      <input type="hidden" name="cid" value="{{ c.id }}">
-      <button class="btn btn-sm btn-icon btn-danger" type="submit"
-              title="Supprimer" aria-label="Supprimer {{ c.nom_complet }}">
-        {{ ico('corbeille','ico-sm') }}</button>
-    </form>
-  </div>
-  <form method="post">
-    <div class="card-body">
-      <input type="hidden" name="action" value="modifier">
-      <input type="hidden" name="cid" value="{{ c.id }}">
-      <div class="form-grid">
-        <div class="field"><label>Nom</label>
-          <input type="text" name="nom" value="{{ c.nom }}" required></div>
-        <div class="field"><label>Prénom</label>
-          <input type="text" name="prenom" value="{{ c.prenom }}"></div>
-        <div class="field"><label>Téléphone</label>
-          <input type="text" name="telephone" value="{{ c.telephone }}"></div>
-        <div class="field"><label>Type de transport</label>
-          <select name="type_transport">
-            {% for cle, lib in types %}
-              <option value="{{ cle }}" {{ 'selected' if cle==c.type_transport }}>{{ lib }}</option>
-            {% endfor %}
-          </select></div>
-        <div class="field"><label>Installation (min)</label>
-          <input type="number" min="0" name="minutes_installation"
-                 value="{{ c.minutes_installation if c.minutes_installation is not none }}"
-                 placeholder="{{ c.installation_retenue }}">
-          <span class="hint">Vide = défaut du type</span></div>
-        <div class="field"><label>Fiche active</label>
-          <label class="check"><input type="checkbox" name="actif"
-                 {{ 'checked' if c.actif }}> Proposée dans les tournées</label></div>
-      </div>
-      <div class="field" style="margin-top:12px">
-        <label>Adresse de domicile</label>
-        <input type="text" name="adresse" value="{{ c.adresse }}"
-               placeholder="12 rue des Lilas, 81000 Albi">
-      </div>
-      <div class="field" style="margin-top:12px">
-        <label>Notes</label>
-        <input type="text" name="notes" value="{{ c.notes }}"
-               placeholder="étage, code d'entrée, particularités…">
-      </div>
-    </div>
-    <div class="card-foot">
-      <button class="btn btn-sm" type="submit">{{ ico('enregistrer','ico-sm') }}Enregistrer</button>
-    </div>
-  </form>
-</div>
-{% endfor %}
 
 <div class="card" style="margin-top:18px">
   <div class="card-head"><span class="t">{{ ico('plus') }}Nouveau client</span></div>
   <form method="post">
     <div class="card-body">
       <input type="hidden" name="action" value="ajouter">
-      <input type="hidden" name="actif" value="1">
       <div class="form-grid">
-        <div class="field"><label for="n-nom">Nom</label>
-          <input id="n-nom" type="text" name="nom" required></div>
         <div class="field"><label for="n-prenom">Prénom</label>
           <input id="n-prenom" type="text" name="prenom"></div>
-        <div class="field"><label for="n-tel">Téléphone</label>
-          <input id="n-tel" type="text" name="telephone"></div>
+        <div class="field"><label for="n-nom">Nom</label>
+          <input id="n-nom" type="text" name="nom" required></div>
         <div class="field"><label for="n-type">Type de transport</label>
           <select id="n-type" name="type_transport">
             {% for cle, lib in types %}
               <option value="{{ cle }}">{{ lib }} — {{ defauts[cle] }} min</option>
             {% endfor %}
           </select></div>
-      </div>
-      <div class="field" style="margin-top:12px">
-        <label for="n-adresse">Adresse de domicile</label>
-        <input id="n-adresse" type="text" name="adresse"
-               placeholder="12 rue des Lilas, 81000 Albi">
       </div>
     </div>
     <div class="card-foot">

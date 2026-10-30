@@ -640,6 +640,11 @@ input.alerte,.tbl td input.alerte{
   display:flex;align-items:center;gap:12px;flex-wrap:wrap;
 }
 .rows .ident{display:flex;align-items:center;gap:9px;min-width:150px}
+/* La zone d'identité ouvre la fiche : c'est un lien, mais il se lit comme
+   du texte — la couleur d'accent sur un nom serait trompeuse. */
+.rows a.ident{color:inherit;flex:1 1 auto}
+.rows a.ident:hover{text-decoration:none}
+.rows a.ident:hover .principal{text-decoration:underline}
 .rows .avatar{
   width:32px;height:32px;flex:none;border-radius:50%;
   background:var(--accent-soft);color:var(--accent-txt);

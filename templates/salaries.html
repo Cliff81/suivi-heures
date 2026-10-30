@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% from "_icons.html" import ico %}
+{% from "_personne.html" import ligne with context %}
 {% block title %}Salariés — Suivi des heures{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <div class="titres">
     <h1>Salariés</h1>
-    <p class="lede">Durée hebdomadaire au format HH:MM (par exemple 39:00).
-       L'adresse de départ est celle d'où part le véhicule le matin : elle sert
-       au calcul des tournées.</p>
+    <p class="lede">Ouvrez une fiche pour la durée hebdomadaire, l'adresse de
+       départ et les coordonnées.</p>
   </div>
 </div>
 
@@ -17,40 +17,8 @@
 {% else %}
 <ul class="rows">
   {% for s in sals %}
-  <li>
-    <span class="ident">
-      <span class="avatar">{{ ico('personne','ico-sm') }}</span>
-      <span>
-        <span class="principal">{{ s.nom_complet }}</span><br>
-        <span class="meta">{{ s.duree }} par semaine{% if s.adresse %} · {{ s.adresse }}{% endif %}</span>
-      </span>
-    </span>
-
-    <div class="outils">
-      <form method="post">
-        <input type="hidden" name="action" value="modifier">
-        <input type="hidden" name="sid" value="{{ s.id }}">
-        <input type="text" name="prenom" value="{{ s.prenom }}" placeholder="Prénom"
-               aria-label="Prénom" style="width:130px">
-        <input type="text" name="nom" value="{{ s.nom }}" placeholder="Nom"
-               aria-label="Nom" style="width:150px">
-        <input type="text" name="duree" value="{{ s.duree }}" placeholder="39:00"
-               aria-label="Durée hebdomadaire" style="width:82px">
-        <input type="text" name="adresse" value="{{ s.adresse }}"
-               placeholder="Adresse de départ (domicile)"
-               aria-label="Adresse de départ de {{ s.nom_complet }}" style="width:240px">
-        <button class="btn btn-sm" type="submit">{{ ico('crayon','ico-sm') }}Modifier</button>
-      </form>
-
-      <form method="post" onsubmit="return confirm('Supprimer {{ s.nom_complet }} et toutes ses données ?')">
-        <input type="hidden" name="action" value="supprimer">
-        <input type="hidden" name="sid" value="{{ s.id }}">
-        <button class="btn btn-sm btn-icon btn-danger" type="submit"
-                aria-label="Supprimer {{ s.nom_complet }}"
-                title="Supprimer">{{ ico('corbeille','ico-sm') }}</button>
-      </form>
-    </div>
-  </li>
+    {{ ligne(s, url_for('fiche_salarie', sid=s.id), url_for('salaries'),
+             'Supprimer ' ~ s.nom_complet ~ ' et toutes ses données ?') }}
   {% endfor %}
 </ul>
 {% endif %}

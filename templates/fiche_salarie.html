@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ico %}
+{% from "_personne.html" import fiche, identite with context %}
+{% block title %}{{ p.nom_complet }} — Suivi des heures{% endblock %}
+{% block content %}
+
+{{ fiche(p, url_for('salaries'), 'Tous les salariés') }}
+
+<form method="post">
+  <input type="hidden" name="action" value="modifier">
+  {{ identite(p) }}
+
+  <div class="card">
+    <div class="card-head"><span class="t">{{ ico('horloge') }}Contrat</span></div>
+    <div class="card-body">
+      <div class="field" style="max-width:240px">
+        <label for="f-duree">Durée hebdomadaire</label>
+        <input id="f-duree" type="text" name="duree" value="{{ p.duree }}">
+        <span class="hint">Format HH:MM, par exemple 39:00</span>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn btn-primary" type="submit">
+        {{ ico('enregistrer') }}Enregistrer la fiche</button>
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-head"><span class="t">{{ ico('volant') }}Activité</span></div>
+  <div class="card-body">
+    <div class="recap-jour">
+      <div><span class="lib">Compte</span>
+           <span class="val" style="font-size:15px">{{ p.compte or "aucun" }}</span></div>
+      <div><span class="lib">Journées saisies</span>
+           <span class="val">{{ p.nb_jours }}</span></div>
+      <div><span class="lib">Courses aujourd'hui</span>
+           <span class="val">{{ p.nb_courses }}</span></div>
+    </div>
+    {% if p.nb_courses %}
+      <p style="margin:12px 0 0"><a href="{{ url_for('tournee_fiche', date_iso=p.jour, sid=p.id) }}">
+        Voir sa tournée du jour →</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
